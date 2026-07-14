@@ -366,7 +366,6 @@ function LaserStage({ width, height }: { width: number; height: number }) {
     <View style={StyleSheet.absoluteFill}>
       <LaserBackground />
       <View style={[styles.stageContent, { width, height }]}>
-        <View style={[styles.laserAimRing, { left: width * 0.5 - 78, top: height * 0.36 - 78 }]} />
         <Animated.View style={[styles.laserHalo, dotStyle]} />
         <Animated.View style={[styles.laserCore, dotStyle]} />
       </View>
@@ -861,14 +860,6 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowOffset: { width: 0, height: 5 },
     textShadowRadius: 12,
-  },
-  laserAimRing: {
-    position: 'absolute',
-    width: 156,
-    height: 156,
-    borderRadius: 78,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.16)',
   },
   laserHalo: {
     position: 'absolute',
