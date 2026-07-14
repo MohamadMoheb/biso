@@ -1,8 +1,6 @@
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
-  catches: number;
-  bestStreak: number;
   elapsedSec: number;
   title?: string;
   subtitle?: string;
@@ -17,11 +15,9 @@ function formatTime(totalSec: number): string {
 }
 
 export function SessionSummary({
-  catches,
-  bestStreak,
   elapsedSec,
-  title = 'Nice play!',
-  subtitle = 'Your cat earned a rest.',
+  title = 'Time for a break',
+  subtitle = 'Short sessions keep play fresh.',
   onPlayAgain,
   onHome,
 }: Props) {
@@ -30,20 +26,7 @@ export function SessionSummary({
       <View style={styles.card}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
-        <View style={styles.row}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{catches}</Text>
-            <Text style={styles.statLabel}>Caught</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{bestStreak}</Text>
-            <Text style={styles.statLabel}>Best streak</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{formatTime(elapsedSec)}</Text>
-            <Text style={styles.statLabel}>Time</Text>
-          </View>
-        </View>
+        <Text style={styles.time}>{formatTime(elapsedSec)}</Text>
         <Pressable
           onPress={onPlayAgain}
           style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
@@ -108,29 +91,14 @@ const styles = StyleSheet.create({
     color: '#4A5A52',
     textAlign: 'center',
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 22,
+  time: {
+    marginTop: 18,
     marginBottom: 22,
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
     fontFamily: bodyFont,
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#1C2A24',
-  },
-  statLabel: {
-    marginTop: 2,
-    fontFamily: bodyFont,
-    fontSize: 12,
-    color: '#5A6B62',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    textAlign: 'center',
   },
   primary: {
     backgroundColor: '#1C2A24',
