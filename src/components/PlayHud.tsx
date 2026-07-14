@@ -2,8 +2,6 @@ import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type PlayHudProps = {
-  catches: number;
-  streak: number;
   elapsedSec: number;
   muted: boolean;
   paused: boolean;
@@ -79,8 +77,6 @@ function HoldChip({
 }
 
 export function PlayHud({
-  catches,
-  streak,
   elapsedSec,
   muted,
   paused,
@@ -93,10 +89,7 @@ export function PlayHud({
       <View style={styles.topRow}>
         <HoldChip label="<" accessibilityLabel="Exit play" onHoldComplete={onExit} />
 
-        <View style={styles.stats}>
-          <Text style={styles.statMain}>{catches}</Text>
-          <Text style={styles.statLabel}>caught</Text>
-        </View>
+        <Text style={styles.meta}>{formatTime(elapsedSec)}</Text>
 
         <View style={styles.rightCluster}>
           <Pressable
@@ -115,12 +108,6 @@ export function PlayHud({
           />
         </View>
       </View>
-
-      <View style={styles.metaRow}>
-        <Text style={styles.meta}>{formatTime(elapsedSec)}</Text>
-        {streak >= 2 ? <Text style={styles.streak}>Streak {streak}</Text> : null}
-      </View>
-      <Text style={styles.holdHint}>Hold back or pause</Text>
     </View>
   );
 }
@@ -176,47 +163,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     zIndex: 1,
   },
-  stats: {
-    alignItems: 'center',
-  },
-  statMain: {
-    color: '#FFFFFF',
-    fontFamily: bodyFont,
-    fontSize: 28,
-    fontWeight: '800',
-    lineHeight: 32,
-  },
-  statLabel: {
-    color: 'rgba(255,255,255,0.78)',
-    fontFamily: bodyFont,
-    fontSize: 12,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  metaRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 14,
-  },
   meta: {
-    color: 'rgba(255,255,255,0.82)',
+    color: 'rgba(255,255,255,0.75)',
     fontFamily: bodyFont,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-  },
-  streak: {
-    color: '#FFE08A',
-    fontFamily: bodyFont,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  holdHint: {
-    marginTop: 4,
-    textAlign: 'center',
-    color: 'rgba(255,255,255,0.4)',
-    fontFamily: bodyFont,
-    fontSize: 11,
   },
 });
