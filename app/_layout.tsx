@@ -3,6 +3,7 @@ import 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import '../src/audio/preloadSounds';
 import { SettingsProvider } from '../src/settings/SettingsContext';
 
 export default function RootLayout() {
