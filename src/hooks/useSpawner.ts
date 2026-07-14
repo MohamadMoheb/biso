@@ -1,29 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { Theme } from '../themes';
+import type { Theme, ThemeId } from '../themes';
+
+export type SpawnEdge = 'left' | 'right' | 'top' | 'bottom';
 
 export type CreatureSpawn = {
   id: string;
   emoji: string;
   size: number;
-  y: number;
-  startX: number;
-  endX: number;
-  duration: number;
-  /** +1 facing right, -1 facing left */
-  facing: 1 | -1;
-  bobAmplitude: number;
-  bobCycles: number;
-  swayDegrees: number;
-  driftY: number;
+  edge: SpawnEdge;
+  /** Peek nest — mostly off-screen */
+  nestX: number;
+  nestY: number;
+  themeId: ThemeId;
 };
 
 const DEFAULT_MAX_ON_SCREEN = 8;
-const MIN_SIZE = 42;
-const MAX_SIZE = 72;
-const MIN_DURATION = 3200;
-const MAX_DURATION = 7800;
-const EDGE_PAD = 80;
+/** Big targets are easier for cats to track and bat. */
+const MIN_SIZE = 118;
+const MAX_SIZE = 190;
 
 function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -33,9 +28,45 @@ function pickEntity(entities: string[]): string {
   return entities[Math.floor(Math.random() * entities.length)] ?? entities[0] ?? '🐾';
 }
 
+function pickEdge(): SpawnEdge {
+  const edges: SpawnEdge[] = ['left', 'right', 'top', 'bottom'];
+  return edges[Math.floor(Math.random() * edges.length)] ?? 'left';
+}
+
+function nestForEdge(
+  edge: SpawnEdge,
+  size: number,
+  screenWidth: number,
+  screenHeight: number,
+): { nestX: number; nestY: number } {
+  const margin = size * 0.15;
+  switch (edge) {
+    case 'left':
+      return {
+        nestX: -size * 0.72,
+        nestY: rand(margin, Math.max(margin, screenHeight - size - margin)),
+      };
+    case 'right':
+      return {
+        nestX: screenWidth - size * 0.28,
+        nestY: rand(margin, Math.max(margin, screenHeight - size - margin)),
+      };
+    case 'top':
+      return {
+        nestX: rand(margin, Math.max(margin, screenWidth - size - margin)),
+        nestY: -size * 0.72,
+      };
+    case 'bottom':
+      return {
+        nestX: rand(margin, Math.max(margin, screenWidth - size - margin)),
+        nestY: screenHeight - size * 0.28,
+      };
+  }
+}
+
 function spawnIntervalForMax(maxOnScreen: number): number {
-  // Fill the screen faster when more creatures are allowed.
-  return Math.round(Math.max(280, 1100 - maxOnScreen * 45));
+  // Fewer, bigger critters — space spawns so chaos stays readable.
+  return Math.round(Math.max(900, 2200 - maxOnScreen * 80));
 }
 
 export function useSpawner(
@@ -63,31 +94,19 @@ export function useSpawner(
       setCreatures((prev) => {
         if (prev.length >= cappedMax) return prev;
 
-        const goRight = Math.random() >= 0.5;
-        const startX = goRight ? -EDGE_PAD : screenWidth + EDGE_PAD;
-        const endX = goRight ? screenWidth + EDGE_PAD : -EDGE_PAD;
         const size = Math.round(rand(MIN_SIZE, MAX_SIZE));
-        const lanePad = size * 1.2;
-        const y = rand(lanePad, Math.max(lanePad, screenHeight - lanePad));
-        const bobAmplitude = rand(size * 0.22, size * 0.55);
-        const bobCycles = rand(1.2, 3.4);
-        // Soft vertical travel so paths aren't flat lanes.
-        const driftY = rand(-size * 0.9, size * 0.9);
+        const edge = pickEdge();
+        const nest = nestForEdge(edge, size, screenWidth, screenHeight);
 
         idRef.current += 1;
         const next: CreatureSpawn = {
           id: `creature-${idRef.current}`,
           emoji: pickEntity(theme.entities),
           size,
-          y,
-          startX,
-          endX,
-          duration: Math.round(rand(MIN_DURATION, MAX_DURATION)),
-          facing: goRight ? 1 : -1,
-          bobAmplitude,
-          bobCycles,
-          swayDegrees: rand(6, 14),
-          driftY,
+          edge,
+          nestX: nest.nestX,
+          nestY: nest.nestY,
+          themeId: theme.id,
         };
         return [...prev, next];
       });
