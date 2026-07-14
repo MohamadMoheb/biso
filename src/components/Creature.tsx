@@ -1,3 +1,4 @@
+import { memo, useEffect, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, Text } from 'react-native';
 import Animated, {
   cancelAnimation,
@@ -7,7 +8,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useEffect, useRef } from 'react';
 
 import { getEntityProfile, type Gait } from '../entityProfiles';
 import type { CreatureSounds } from '../hooks/useCreatureSounds';
@@ -43,6 +43,28 @@ function facingToward(fromX: number, toX: number): 1 | -1 {
  */
 const DISPLAY_FACE = -1;
 const FACE_FLIP_MIN_DX = 10;
+
+type GaitKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+// 0=other 1=flyer 2=fish 3=jelly 4=shrimp 5=bunny 6=lizard 7=walker
+
+function gaitKind(gait: Gait): GaitKind {
+  if (gait === 'butterfly' || gait === 'bird' || gait === 'bee') return 1;
+  if (gait === 'fish') return 2;
+  if (gait === 'jelly') return 3;
+  if (gait === 'shrimp') return 4;
+  if (gait === 'bunny') return 5;
+  if (gait === 'lizard') return 6;
+  if (
+    gait === 'beetle' ||
+    gait === 'crab' ||
+    gait === 'scorpion' ||
+    gait === 'ladybug' ||
+    gait === 'squirrel'
+  ) {
+    return 7;
+  }
+  return 0;
+}
 
 function offscreenSpot(
   edge: SpawnEdge,
@@ -81,7 +103,7 @@ function isWalker(gait: Gait): boolean {
   );
 }
 
-export function Creature({
+function CreatureComponent({
   creature,
   screenWidth,
   screenHeight,
@@ -93,6 +115,7 @@ export function Creature({
 }: CreatureProps) {
   const profile = getEntityProfile(creature.emoji);
   const gait = profile.gait;
+  const kind = gaitKind(gait);
   const start = offscreenSpot(creature.edge, creature.size, creature.nestX, creature.nestY);
 
   const x = useSharedValue(start.x);
@@ -103,6 +126,7 @@ export function Creature({
   const opacity = useSharedValue(1);
   const caught = useSharedValue(false);
   const frozen = useSharedValue(paused ? 1 : 0);
+  const kindSv = useSharedValue<GaitKind>(kind);
 
   const aliveRef = useRef(true);
   const pausedRef = useRef(paused);
@@ -110,18 +134,22 @@ export function Creature({
   const phaseRef = useRef(0);
   const soundsRef = useRef(sounds);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const pauseResolversRef = useRef<Array<() => void>>([]);
   soundsRef.current = sounds;
   pausedRef.current = paused;
-  frozen.value = paused ? 1 : 0;
 
-  // Freeze in-flight motion when paused so entities don't keep sliding under the overlay.
+  // Freeze in-flight motion when paused; wake waiters on resume.
   useEffect(() => {
     frozen.value = paused ? 1 : 0;
-    if (!paused) return;
-    cancelAnimation(x);
-    cancelAnimation(y);
-    cancelAnimation(phase);
-    posRef.current = { x: x.value, y: y.value };
+    if (paused) {
+      cancelAnimation(x);
+      cancelAnimation(y);
+      cancelAnimation(phase);
+      posRef.current = { x: x.value, y: y.value };
+      return;
+    }
+    const resolvers = pauseResolversRef.current.splice(0);
+    for (const resolve of resolvers) resolve();
   }, [paused, frozen, phase, x, y]);
 
   const pad = Math.max(16, creature.size * 0.12);
@@ -135,44 +163,26 @@ export function Creature({
     const emoji = creature.emoji;
     const stridePx = Math.max(28, creature.size * profile.stride);
 
+    const waitWhilePaused = () =>
+      new Promise<void>((resolve) => {
+        if (!aliveRef.current || caught.value || !pausedRef.current) {
+          resolve();
+          return;
+        }
+        pauseResolversRef.current.push(resolve);
+      });
+
     const wait = (ms: number) =>
       new Promise<void>((resolve) => {
         if (!aliveRef.current || caught.value) {
           resolve();
           return;
         }
-        let left = ms;
-        const step = () => {
-          if (!aliveRef.current || caught.value) {
-            resolve();
-            return;
-          }
-          if (pausedRef.current) {
-            const t = setTimeout(step, 100);
-            timersRef.current.push(t);
-            return;
-          }
-          const slice = Math.min(100, left);
-          left -= slice;
-          if (left <= 0) {
-            resolve();
-            return;
-          }
-          const t = setTimeout(step, slice);
-          timersRef.current.push(t);
-        };
-        step();
+        const t = setTimeout(() => {
+          void waitWhilePaused().then(resolve);
+        }, ms);
+        timersRef.current.push(t);
       });
-
-    /** Block the life loop until play is resumed. */
-    const waitWhilePaused = async () => {
-      while (aliveRef.current && !caught.value && pausedRef.current) {
-        await new Promise<void>((resolve) => {
-          const t = setTimeout(resolve, 80);
-          timersRef.current.push(t);
-        });
-      }
-    };
 
     const setPhase = (next: number, duration: number) => {
       if (pausedRef.current) return;
@@ -254,8 +264,9 @@ export function Creature({
       const duration = Math.round(clamp((dist / speed) * 1000, 520, 4000));
       const steps = Math.max(0.8, dist / stridePx);
 
-      const gap = opts?.soundGap ?? [260, 420];
+      const gap = opts?.soundGap ?? [480, 720];
       const endAt = Date.now() + duration;
+      // Sparse move sounds — global throttle in the sound hook also helps.
       void (async () => {
         while (aliveRef.current && !caught.value && Date.now() < endAt) {
           if (pausedRef.current) {
@@ -339,6 +350,8 @@ export function Creature({
         soundsRef.current.playBurst(emoji);
         await faceTowardX(target.x);
         if (!aliveRef.current || caught.value) return;
+        await waitWhilePaused();
+        if (!aliveRef.current || caught.value || pausedRef.current) return;
         const apexX = (posRef.current.x + target.x) / 2;
         const apexY = Math.min(posRef.current.y, target.y) - creature.size * rand(0.35, 0.55);
         const upDist = Math.hypot(apexX - posRef.current.x, apexY - posRef.current.y);
@@ -347,6 +360,8 @@ export function Creature({
         // Hop apex without flipping facing mid-jump.
         await moveTo(apexX, apexY, upDur, Easing.out(Easing.quad));
         if (!aliveRef.current || caught.value) return;
+        await waitWhilePaused();
+        if (!aliveRef.current || caught.value || pausedRef.current) return;
         await travelTo(target.x, target.y, 1.1, { soundGap: [180, 280], turnPause: false });
         return;
       }
@@ -406,11 +421,14 @@ export function Creature({
     };
 
     const runLife = async () => {
+      await waitWhilePaused();
       await enterPlayfield();
       if (!aliveRef.current || caught.value) return;
 
       const actions = Math.round(rand(7, 13));
       for (let i = 0; i < actions; i++) {
+        if (!aliveRef.current || caught.value) return;
+        await waitWhilePaused();
         if (!aliveRef.current || caught.value) return;
         const roll = Math.random();
         if (gait === 'bunny' || gait === 'bee') {
@@ -430,6 +448,8 @@ export function Creature({
       }
 
       if (!aliveRef.current || caught.value) return;
+      await waitWhilePaused();
+      if (!aliveRef.current || caught.value) return;
       await leavePlayfield();
       if (aliveRef.current && !caught.value) {
         runOnJS(onExit)(creature.id);
@@ -443,6 +463,8 @@ export function Creature({
       aliveRef.current = false;
       for (const t of timersRef.current) clearTimeout(t);
       timersRef.current = [];
+      const resolvers = pauseResolversRef.current.splice(0);
+      for (const resolve of resolvers) resolve();
       cancelAnimation(x);
       cancelAnimation(y);
       cancelAnimation(phase);
@@ -453,43 +475,65 @@ export function Creature({
   }, [creature.id]);
 
   const wrapStyle = useAnimatedStyle(() => {
+    if (frozen.value) {
+      return {
+        transform: [
+          { translateX: x.value },
+          { translateY: y.value },
+          { scaleX: DISPLAY_FACE * facing.value * scale.value },
+          { scaleY: scale.value },
+          { rotate: '0deg' },
+        ],
+        opacity: opacity.value,
+      };
+    }
+
     const cycle = phase.value * Math.PI * 2;
+    const k = kindSv.value;
     let bobY = 0;
     let sway = 0;
     let squashX = 1;
     let squashY = 1;
 
-    if (isFlyer(gait)) {
+    if (k === 1) {
       const flap = 0.72 + (Math.sin(cycle) * 0.5 + 0.5) * 0.28;
       squashX = flap;
       squashY = 1 + (1 - flap) * 0.12;
       bobY = Math.sin(cycle * 0.5) * 5;
       sway = Math.sin(cycle * 0.35) * 6;
-    } else if (gait === 'fish') {
-      // Soft body wave — keep tilt small so it never reads as swimming reverse.
-      sway = Math.sin(cycle) * 5;
+    } else if (k === 2) {
+      const s = Math.sin(cycle);
+      sway = s * 5;
       bobY = Math.sin(cycle * 0.5) * 3;
-      squashX = 1 + Math.sin(cycle) * 0.04;
-    } else if (gait === 'jelly') {
+      squashX = 1 + s * 0.04;
+    } else if (k === 3) {
       const pulse = (Math.sin(cycle) + 1) / 2;
       squashX = 0.88 + pulse * 0.2;
       squashY = 1.12 - pulse * 0.22;
       bobY = Math.sin(cycle) * 6;
-    } else if (gait === 'shrimp') {
-      sway = Math.sin(cycle) * 6;
-      squashX = 1 + Math.sin(cycle) * 0.06;
-    } else if (gait === 'bunny') {
+    } else if (k === 4) {
+      const s = Math.sin(cycle);
+      sway = s * 6;
+      squashX = 1 + s * 0.06;
+    } else if (k === 5) {
       const hop = Math.max(0, Math.sin(cycle));
       bobY = hop * 10;
       squashX = 1 + hop * 0.08;
       squashY = 1 - hop * 0.1;
-    } else if (isWalker(gait)) {
-      bobY = Math.abs(Math.sin(cycle)) * (gait === 'lizard' ? 7 : 5);
-      sway = Math.sin(cycle) * (gait === 'lizard' ? 6 : 4);
-      squashY = 1 - Math.abs(Math.sin(cycle)) * 0.04;
+    } else if (k === 6) {
+      const s = Math.sin(cycle);
+      bobY = Math.abs(s) * 7;
+      sway = s * 6;
+      squashY = 1 - Math.abs(s) * 0.04;
+    } else if (k === 7) {
+      const s = Math.sin(cycle);
+      bobY = Math.abs(s) * 5;
+      sway = s * 4;
+      squashY = 1 - Math.abs(s) * 0.04;
     } else {
-      bobY = Math.sin(cycle) * 3;
-      sway = Math.sin(cycle) * 3;
+      const s = Math.sin(cycle);
+      bobY = s * 3;
+      sway = s * 3;
     }
 
     return {
@@ -574,3 +618,5 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 });
+
+export const Creature = memo(CreatureComponent);
