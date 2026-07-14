@@ -1,13 +1,16 @@
+import { Asset } from 'expo-asset';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import {
   Image,
-  type LayoutChangeEvent,
+  Platform,
   StyleSheet,
   useWindowDimensions,
   View,
+  type ViewStyle,
 } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -27,6 +30,7 @@ const THEME_TILES: Record<ThemeId, number> = {
 };
 
 const LASER_FLOOR_TILE = require('../../assets/backgrounds/laser-floor-tile.png');
+const ALL_TILES = [...Object.values(THEME_TILES), LASER_FLOOR_TILE];
 
 /** Native tile pixels (all worlds share the same canvas size). */
 const TILE_PX_W = 512;
@@ -64,6 +68,79 @@ const ATMOS: Record<
   },
 };
 
+/** Decode all world tiles once so theme / mode switches are instant. */
+let tilesPrefetched = false;
+export function prefetchBackgroundTiles() {
+  if (tilesPrefetched) return;
+  tilesPrefetched = true;
+  void Asset.loadAsync(ALL_TILES).catch(() => undefined);
+  for (const source of ALL_TILES) {
+    try {
+      const uri = Asset.fromModule(source).uri;
+      if (uri) void Image.prefetch(uri).catch(() => undefined);
+    } catch {
+      // Asset registry may not be ready yet during hot reload.
+    }
+  }
+}
+
+prefetchBackgroundTiles();
+
+/**
+ * One decode, GPU/CSS tiling — was previously a grid of separate Image views
+ * that each waited on layout + their own load (especially painful on web).
+ */
+function TiledFill({
+  source,
+  tileW,
+  tileH,
+  opacity = 1,
+}: {
+  source: number;
+  tileW: number;
+  tileH: number;
+  opacity?: number;
+}) {
+  if (Platform.OS === 'web') {
+    let uri: string | null = null;
+    try {
+      uri = Asset.fromModule(source).uri;
+    } catch {
+      uri = null;
+    }
+    if (!uri) {
+      // Fallback: single Image with native-css repeat at intrinsic size.
+      return (
+        <Image
+          source={source}
+          style={[StyleSheet.absoluteFill, { opacity }]}
+          resizeMode="repeat"
+          accessibilityIgnoresInvertColors
+        />
+      );
+    }
+    const webStyle = {
+      opacity,
+      backgroundImage: `url("${uri}")`,
+      backgroundRepeat: 'repeat',
+      backgroundSize: `${tileW}px ${tileH}px`,
+    } as ViewStyle;
+    return (
+      <View style={[StyleSheet.absoluteFill, styles.clip, webStyle]} pointerEvents="none" />
+    );
+  }
+
+  // Native: one Image with repeat — keeps size/aspect, covers the frame.
+  return (
+    <Image
+      source={source}
+      style={[StyleSheet.absoluteFill, styles.clip, { opacity }]}
+      resizeMode="repeat"
+      accessibilityIgnoresInvertColors
+    />
+  );
+}
+
 function Twinkle({
   left,
   top,
@@ -88,6 +165,7 @@ function Twinkle({
         true,
       ),
     );
+    return () => cancelAnimation(opacity);
   }, [delay, opacity]);
 
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
@@ -105,60 +183,12 @@ function Twinkle({
 
 function PatternFill({ themeId }: { themeId: ThemeId }) {
   const { width: winW } = useWindowDimensions();
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const source = THEME_TILES[themeId];
-
   // Larger tiles = fewer repeats in view → pattern reads as texture, not wallpaper.
   const tileW = Math.max(380, Math.min(560, Math.round(winW * 0.72)));
   const tileH = Math.round((tileW * TILE_PX_H) / TILE_PX_W);
 
-  const onLayout = useCallback((e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout;
-    if (width > 0 && height > 0) {
-      setSize((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
-    }
-  }, []);
-
-  const cols = Math.max(1, Math.ceil(size.w / tileW) + 1);
-  const rows = Math.max(1, Math.ceil(size.h / tileH) + 1);
-  const tiles = useMemo(() => {
-    if (size.w <= 0 || size.h <= 0) return [] as { key: string; left: number; top: number }[];
-    const list: { key: string; left: number; top: number }[] = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        list.push({
-          key: `${r}-${c}`,
-          left: Math.round(c * tileW),
-          top: Math.round(r * tileH),
-        });
-      }
-    }
-    return list;
-  }, [cols, rows, size.w, size.h, tileW, tileH]);
-
   return (
-    <View
-      style={[StyleSheet.absoluteFill, styles.clip]}
-      pointerEvents="none"
-      onLayout={onLayout}
-    >
-      {tiles.map((t) => (
-        <Image
-          key={t.key}
-          source={source}
-          style={{
-            position: 'absolute',
-            left: t.left,
-            top: t.top,
-            width: tileW,
-            height: tileH,
-            opacity: 0.72,
-          }}
-          resizeMode="stretch"
-          accessibilityIgnoresInvertColors
-        />
-      ))}
-    </View>
+    <TiledFill source={THEME_TILES[themeId]} tileW={tileW} tileH={tileH} opacity={0.72} />
   );
 }
 
@@ -199,56 +229,14 @@ export function ThemeBackground({ theme }: ThemeBackgroundProps) {
 
 export function LaserBackground({ lite }: { lite?: boolean } = {}) {
   const { width: winW } = useWindowDimensions();
-  const [size, setSize] = useState({ w: 0, h: 0 });
-
   const tileW = Math.max(420, Math.min(640, Math.round(winW * 0.85)));
   const tileH = Math.round((tileW * LASER_TILE_PX_H) / LASER_TILE_PX_W);
 
-  const onLayout = useCallback((e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout;
-    if (width > 0 && height > 0) {
-      setSize((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
-    }
-  }, []);
-
-  const cols = Math.max(1, Math.ceil(size.w / tileW) + 1);
-  const rows = Math.max(1, Math.ceil(size.h / tileH) + 1);
-  const tiles = useMemo(() => {
-    if (size.w <= 0 || size.h <= 0) return [] as { key: string; left: number; top: number }[];
-    const list: { key: string; left: number; top: number }[] = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        list.push({
-          key: `${r}-${c}`,
-          left: Math.round(c * tileW),
-          top: Math.round(r * tileH),
-        });
-      }
-    }
-    return list;
-  }, [cols, rows, size.w, size.h, tileW, tileH]);
-
   // Dark hardwood playfloor — cool charcoal oak so the red laser dominates (ch09).
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={onLayout}>
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <View style={[StyleSheet.absoluteFill, styles.laserBase]} />
-      <View style={[StyleSheet.absoluteFill, styles.clip]}>
-        {tiles.map((t) => (
-          <Image
-            key={t.key}
-            source={LASER_FLOOR_TILE}
-            style={{
-              position: 'absolute',
-              left: t.left,
-              top: t.top,
-              width: tileW,
-              height: tileH,
-            }}
-            resizeMode="stretch"
-            accessibilityIgnoresInvertColors
-          />
-        ))}
-      </View>
+      <TiledFill source={LASER_FLOOR_TILE} tileW={tileW} tileH={tileH} />
 
       {/* Lamp spill from the far corner */}
       <LinearGradient
