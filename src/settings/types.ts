@@ -33,7 +33,7 @@ export const DIFFICULTY_META: Record<
   Difficulty,
   { label: string; blurb: string; speed: number; sizeBoost: number }
 > = {
-  calm: { label: 'Calm', blurb: 'Slow & easy — great for kittens', speed: 0.65, sizeBoost: 1.15 },
+  calm: { label: 'Calm', blurb: 'Slow & easy - great for kittens', speed: 0.65, sizeBoost: 1.15 },
   playful: { label: 'Playful', blurb: 'Balanced chase for most cats', speed: 1, sizeBoost: 1 },
   wild: { label: 'Wild', blurb: 'Fast targets for energetic hunters', speed: 1.45, sizeBoost: 0.9 },
 };
