@@ -7,6 +7,8 @@ export type PlayMode = 'creatures' | 'laser';
 export type Settings = {
   soundEnabled: boolean;
   hapticsEnabled: boolean;
+  /** Front-camera surprise selfies during play */
+  catCamEnabled: boolean;
   difficulty: Difficulty;
   /** 0 = no limit */
   sessionMinutes: 0 | 5 | 10 | 15;
@@ -18,6 +20,7 @@ export type Settings = {
 export const DEFAULT_SETTINGS: Settings = {
   soundEnabled: true,
   hapticsEnabled: true,
+  catCamEnabled: false,
   difficulty: 'playful',
   sessionMinutes: 0,
   creatureCount: 2,
