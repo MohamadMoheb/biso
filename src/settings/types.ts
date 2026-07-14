@@ -12,8 +12,6 @@ export type Settings = {
   sessionMinutes: 0 | 5 | 10 | 15;
   creatureCount: number;
   tipSeen: boolean;
-  totalCatches: number;
-  bestStreak: number;
   sessionsPlayed: number;
 };
 
@@ -24,8 +22,6 @@ export const DEFAULT_SETTINGS: Settings = {
   sessionMinutes: 10,
   creatureCount: 4,
   tipSeen: false,
-  totalCatches: 0,
-  bestStreak: 0,
   sessionsPlayed: 0,
 };
 
