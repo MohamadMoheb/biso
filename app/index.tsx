@@ -7,38 +7,58 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSettings } from '../src/settings/SettingsContext';
+import { DIFFICULTY_META, type Difficulty } from '../src/settings/types';
 import { THEME_LIST, type Theme } from '../src/themes';
 
 const COUNT_OPTIONS = [2, 4, 6, 8, 12] as const;
+const SESSION_OPTIONS: Array<0 | 5 | 10 | 15> = [0, 5, 10, 15];
+const DIFFICULTIES = Object.keys(DIFFICULTY_META) as Difficulty[];
 
 type ModeId = 'creatures' | 'laser' | 'wand';
 
-const MODES: { id: ModeId; title: string; subtitle: string; emoji: string }[] = [
-  {
-    id: 'creatures',
-    title: 'Creatures',
-    subtitle: 'Chase fish, lizards, bunnies & more',
-    emoji: '🦎',
-  },
-  {
-    id: 'laser',
-    title: 'Laser',
-    subtitle: 'Classic red-dot hunt',
-    emoji: '🔴',
-  },
-  {
-    id: 'wand',
-    title: 'Feather wand',
-    subtitle: 'One soft target on a string',
-    emoji: '🪶',
-  },
+const MODES: { id: ModeId; title: string; blurb: string; emoji: string }[] = [
+  { id: 'creatures', title: 'Creatures', blurb: 'Living targets', emoji: '🦎' },
+  { id: 'laser', title: 'Laser', blurb: 'Bright red dot', emoji: '🔴' },
+  { id: 'wand', title: 'Wand', blurb: 'Soft feather', emoji: '🪶' },
 ];
+
+function ChipRow<T extends string | number>({
+  options,
+  value,
+  labelFor,
+  onChange,
+}: {
+  options: readonly T[];
+  value: T;
+  labelFor: (v: T) => string;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <View style={styles.chipRow}>
+      {options.map((opt) => {
+        const selected = opt === value;
+        return (
+          <Pressable
+            key={String(opt)}
+            onPress={() => onChange(opt)}
+            style={[styles.chip, selected && styles.chipOn]}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+          >
+            <Text style={[styles.chipText, selected && styles.chipTextOn]}>{labelFor(opt)}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 function ThemeButton({
   theme,
@@ -59,7 +79,7 @@ function ThemeButton({
       ]}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      accessibilityLabel={`${theme.title}. ${theme.subtitle}`}
+      accessibilityLabel={theme.title}
     >
       <LinearGradient
         colors={theme.gradient}
@@ -68,17 +88,24 @@ function ThemeButton({
         style={styles.themeButton}
       >
         <Text style={styles.themeEmoji}>{theme.emoji}</Text>
-        <View style={styles.themeCopy}>
-          <Text style={styles.themeTitle}>{theme.title}</Text>
-          <Text style={styles.themeSubtitle}>{theme.subtitle}</Text>
-        </View>
+        <Text style={styles.themeTitle}>{theme.title}</Text>
       </LinearGradient>
     </Pressable>
   );
 }
 
 export default function Index() {
-  const { settings, setCreatureCount, markTipSeen, ready } = useSettings();
+  const {
+    settings,
+    setCreatureCount,
+    setDifficulty,
+    setSessionMinutes,
+    setSoundEnabled,
+    setHapticsEnabled,
+    markTipSeen,
+    ready,
+  } = useSettings();
+
   const [mode, setMode] = useState<ModeId>('creatures');
   const [themeId, setThemeId] = useState(THEME_LIST[0]!.id);
   const [tipOpen, setTipOpen] = useState(false);
@@ -111,52 +138,31 @@ export default function Index() {
         style={StyleSheet.absoluteFill}
       />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <View style={{ width: 44 }} />
-          <View style={styles.hero}>
-            <Text style={styles.brand}>Biso</Text>
-            <Text style={styles.tagline}>Play that cats can't resist</Text>
-          </View>
-          <Pressable
-            onPress={() => router.push('/settings')}
-            style={styles.iconBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-          >
-            <Text style={styles.iconBtnText}>Set</Text>
-          </Pressable>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.hero}>
+          <Text style={styles.brand}>Biso</Text>
+          <Text style={styles.tagline}>Cat play, ready when you are</Text>
         </View>
 
-        {(settings.totalCatches > 0 || settings.sessionsPlayed > 0) && (
-          <View style={styles.statsStrip}>
-            <Text style={styles.statsText}>
-              {`${settings.totalCatches} caught - ${settings.bestStreak} best streak - ${settings.sessionsPlayed} sessions`}
-            </Text>
-          </View>
-        )}
-
-        <Text style={styles.sectionLabel}>Play mode</Text>
-        <View style={styles.modeList}>
+        <Text style={styles.sectionLabel}>Mode</Text>
+        <View style={styles.modeRow}>
           {MODES.map((m) => {
             const selected = m.id === mode;
             return (
               <Pressable
                 key={m.id}
                 onPress={() => setMode(m.id)}
-                style={[styles.modeCard, selected && styles.modeCardSelected]}
+                style={[styles.modeCard, selected && styles.modeCardOn]}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
               >
                 <Text style={styles.modeEmoji}>{m.emoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.modeTitle, selected && styles.modeTitleSelected]}>
-                    {m.title}
-                  </Text>
-                  <Text style={[styles.modeSubtitle, selected && styles.modeSubtitleSelected]}>
-                    {m.subtitle}
-                  </Text>
-                </View>
+                <Text style={[styles.modeTitle, selected && styles.modeTitleOn]}>{m.title}</Text>
+                <Text style={[styles.modeBlurb, selected && styles.modeBlurbOn]}>{m.blurb}</Text>
               </Pressable>
             );
           })}
@@ -164,26 +170,20 @@ export default function Index() {
 
         {mode === 'creatures' ? (
           <>
-            <Text style={styles.sectionLabel}>On screen at once</Text>
-            <View style={styles.densityRow}>
-              {COUNT_OPTIONS.map((n) => {
-                const selected = n === settings.creatureCount;
-                return (
-                  <Pressable
-                    key={n}
-                    onPress={() => setCreatureCount(n)}
-                    style={[styles.countChip, selected && styles.countChipSelected]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                  >
-                    <Text style={[styles.countText, selected && styles.countTextSelected]}>{n}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            <Text style={styles.sectionLabel}>How many</Text>
+            <ChipRow
+              options={COUNT_OPTIONS}
+              value={
+                (COUNT_OPTIONS.includes(settings.creatureCount as (typeof COUNT_OPTIONS)[number])
+                  ? settings.creatureCount
+                  : 4) as (typeof COUNT_OPTIONS)[number]
+              }
+              labelFor={(n) => String(n)}
+              onChange={setCreatureCount}
+            />
 
             <Text style={styles.sectionLabel}>World</Text>
-            <View style={styles.themeList}>
+            <View style={styles.themeRow}>
               {THEME_LIST.map((theme) => (
                 <ThemeButton
                   key={theme.id}
@@ -197,10 +197,48 @@ export default function Index() {
         ) : (
           <Text style={styles.modeHint}>
             {mode === 'laser'
-              ? 'Drag anywhere for a bright laser. It roams on its own when you lift your finger.'
-              : 'Guide a feather wand with your finger, or let it drift for a gentler hunt.'}
+              ? 'Drag to steer. Cats score by tapping the red dot.'
+              : 'Drag the feather, or let it drift on its own.'}
           </Text>
         )}
+
+        <Text style={styles.sectionLabel}>Pace</Text>
+        <ChipRow
+          options={DIFFICULTIES}
+          value={settings.difficulty}
+          labelFor={(id) => DIFFICULTY_META[id].label}
+          onChange={setDifficulty}
+        />
+        <Text style={styles.hint}>{DIFFICULTY_META[settings.difficulty].blurb}</Text>
+
+        <Text style={styles.sectionLabel}>Break after</Text>
+        <ChipRow
+          options={SESSION_OPTIONS}
+          value={settings.sessionMinutes}
+          labelFor={(m) => (m === 0 ? 'Off' : `${m} min`)}
+          onChange={setSessionMinutes}
+        />
+
+        <Text style={styles.sectionLabel}>While playing</Text>
+        <View style={styles.toggleCard}>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Sound</Text>
+            <Switch
+              value={settings.soundEnabled}
+              onValueChange={setSoundEnabled}
+              trackColor={{ true: '#1C2A24', false: '#C9D0CB' }}
+            />
+          </View>
+          <View style={styles.toggleDivider} />
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Haptics</Text>
+            <Switch
+              value={settings.hapticsEnabled}
+              onValueChange={setHapticsEnabled}
+              trackColor={{ true: '#1C2A24', false: '#C9D0CB' }}
+            />
+          </View>
+        </View>
 
         <Pressable
           onPress={start}
@@ -217,8 +255,8 @@ export default function Index() {
           <View style={styles.tipCard}>
             <Text style={styles.tipTitle}>For your cat</Text>
             <Text style={styles.tipBody}>
-              Place the phone flat. Tap or swipe targets. Keep sessions short - Biso will nudge you
-              when it's break time.
+              Lay the phone flat. Cats bat the targets. Hold back or pause so paws do not leave by
+              mistake.
             </Text>
             <Pressable
               onPress={() => {
@@ -227,7 +265,7 @@ export default function Index() {
               }}
               style={styles.tipBtn}
             >
-              <Text style={styles.tipBtnText}>Let's play</Text>
+              <Text style={styles.tipBtnText}>Got it</Text>
             </Pressable>
           </View>
         </View>
@@ -254,18 +292,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F2E8',
   },
   scroll: {
-    paddingHorizontal: 24,
-    paddingBottom: 36,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingTop: 12,
+    paddingHorizontal: 22,
+    paddingBottom: 40,
   },
   hero: {
-    flex: 1,
     alignItems: 'center',
+    paddingTop: 20,
     paddingBottom: 8,
   },
   brand: {
@@ -283,122 +315,122 @@ const styles = StyleSheet.create({
     color: '#4A5A52',
     textAlign: 'center',
   },
-  iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(28,42,36,0.06)',
-  },
-  iconBtnText: { fontSize: 20 },
-  statsStrip: {
-    marginTop: 8,
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  statsText: {
+  sectionLabel: {
+    marginTop: 22,
+    marginBottom: 10,
     fontFamily: bodyFont,
     fontSize: 13,
     color: '#5A6B62',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
-  sectionLabel: {
-    marginTop: 18,
-    marginBottom: 10,
-    fontFamily: bodyFont,
-    fontSize: 14,
-    color: '#5A6B62',
-    textAlign: 'center',
-    letterSpacing: 0.2,
-  },
-  modeList: { gap: 10 },
-  modeCard: {
+  modeRow: {
     flexDirection: 'row',
+    gap: 8,
+  },
+  modeCard: {
+    flex: 1,
     alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    borderRadius: 18,
     backgroundColor: 'rgba(28,42,36,0.06)',
   },
-  modeCardSelected: {
+  modeCardOn: {
     backgroundColor: '#1C2A24',
   },
-  modeEmoji: { fontSize: 30 },
+  modeEmoji: { fontSize: 26, marginBottom: 6 },
   modeTitle: {
-    fontFamily: displayFont,
-    fontSize: 22,
-    color: '#1C2A24',
-    fontWeight: '700',
-  },
-  modeTitleSelected: { color: '#F7F2E8' },
-  modeSubtitle: {
-    marginTop: 2,
     fontFamily: bodyFont,
     fontSize: 14,
-    color: '#5A6B62',
+    fontWeight: '700',
+    color: '#1C2A24',
   },
-  modeSubtitleSelected: { color: 'rgba(247,242,232,0.82)' },
+  modeTitleOn: { color: '#F7F2E8' },
+  modeBlurb: {
+    marginTop: 2,
+    fontFamily: bodyFont,
+    fontSize: 11,
+    color: '#5A6B62',
+    textAlign: 'center',
+  },
+  modeBlurbOn: { color: 'rgba(247,242,232,0.75)' },
   modeHint: {
-    marginTop: 12,
     fontFamily: bodyFont,
     fontSize: 15,
     lineHeight: 22,
     color: '#4A5A52',
-    textAlign: 'center',
-    paddingHorizontal: 8,
   },
-  densityRow: {
+  chipRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  countChip: {
-    minWidth: 48,
-    height: 44,
-    paddingHorizontal: 12,
-    borderRadius: 14,
+  chip: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(28, 42, 36, 0.06)',
+    backgroundColor: 'rgba(28,42,36,0.06)',
   },
-  countChipSelected: { backgroundColor: '#1C2A24' },
-  countText: {
+  chipOn: { backgroundColor: '#1C2A24' },
+  chipText: {
     fontFamily: bodyFont,
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1C2A24',
   },
-  countTextSelected: { color: '#F7F2E8' },
-  themeList: { gap: 12 },
-  themePress: { borderRadius: 24, opacity: 0.72 },
-  themeSelected: { opacity: 1, transform: [{ scale: 1.01 }] },
+  chipTextOn: { color: '#F7F2E8' },
+  hint: {
+    marginTop: 8,
+    fontFamily: bodyFont,
+    fontSize: 13,
+    color: '#5A6B62',
+  },
+  themeRow: { gap: 10 },
+  themePress: { borderRadius: 18, opacity: 0.75 },
+  themeSelected: { opacity: 1 },
   themePressed: { opacity: 0.9 },
   themeButton: {
-    minHeight: 92,
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    minHeight: 72,
+    borderRadius: 18,
+    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
     overflow: 'hidden',
   },
-  themeEmoji: { fontSize: 42 },
-  themeCopy: { flex: 1 },
+  themeEmoji: { fontSize: 34 },
   themeTitle: {
     fontFamily: displayFont,
-    fontSize: 26,
+    fontSize: 24,
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  themeSubtitle: {
-    marginTop: 2,
+  toggleCard: {
+    borderRadius: 18,
+    backgroundColor: 'rgba(28,42,36,0.06)',
+    paddingHorizontal: 16,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+  },
+  toggleDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(28,42,36,0.12)',
+  },
+  toggleLabel: {
     fontFamily: bodyFont,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.88)',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1C2A24',
   },
   startBtn: {
-    marginTop: 24,
+    marginTop: 28,
     backgroundColor: '#1C2A24',
     borderRadius: 18,
     paddingVertical: 16,
