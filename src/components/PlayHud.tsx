@@ -69,7 +69,7 @@ export function PlayHud({
 
       <View style={styles.metaRow}>
         <Text style={styles.meta}>{formatTime(elapsedSec)}</Text>
-        {streak >= 2 ? <Text style={styles.streak}>🔥 {streak} streak</Text> : null}
+        {streak >= 2 ? <Text style={styles.streak}>Streak {streak}</Text> : null}
       </View>
     </View>
   );
