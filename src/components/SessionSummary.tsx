@@ -1,23 +1,22 @@
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { formatTime } from '../utils/formatTime';
+
 type Props = {
   elapsedSec: number;
   title?: string;
   subtitle?: string;
+  /** Optional score line (e.g. laser taps). */
+  scoreLabel?: string;
   onPlayAgain: () => void;
   onHome: () => void;
 };
-
-function formatTime(totalSec: number): string {
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
 
 export function SessionSummary({
   elapsedSec,
   title = 'Time for a break',
   subtitle = 'Short sessions keep play fresh.',
+  scoreLabel,
   onPlayAgain,
   onHome,
 }: Props) {
@@ -26,7 +25,8 @@ export function SessionSummary({
       <View style={styles.card}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
-        <Text style={styles.time}>{formatTime(elapsedSec)}</Text>
+        <Text style={[styles.time, !scoreLabel && styles.timeSolo]}>{formatTime(elapsedSec)}</Text>
+        {scoreLabel ? <Text style={styles.score}>{scoreLabel}</Text> : null}
         <Pressable
           onPress={onPlayAgain}
           style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
@@ -93,11 +93,22 @@ const styles = StyleSheet.create({
   },
   time: {
     marginTop: 18,
-    marginBottom: 22,
+    marginBottom: 8,
     fontFamily: bodyFont,
     fontSize: 22,
     fontWeight: '700',
     color: '#1C2A24',
+    textAlign: 'center',
+  },
+  timeSolo: {
+    marginBottom: 22,
+  },
+  score: {
+    marginBottom: 22,
+    fontFamily: bodyFont,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4A5A52',
     textAlign: 'center',
   },
   primary: {
