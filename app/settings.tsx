@@ -36,7 +36,7 @@ export default function SettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Text style={styles.backText}>←</Text>
+          <Text style={styles.backText}>{'<'}</Text>
         </Pressable>
         <Text style={styles.title}>Settings</Text>
         <View style={{ width: 44 }} />
