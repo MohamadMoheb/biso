@@ -325,27 +325,6 @@ export default function Index() {
         <View style={styles.spacer} pointerEvents="none" />
 
         <Animated.View entering={FadeInDown.delay(80).duration(420)} style={styles.dock}>
-          <View style={styles.modeRow}>
-            <ModePill
-              active={mode === 'creatures'}
-              label="Creatures"
-              emoji="🦎"
-              onPress={() => {
-                tap();
-                setMode('creatures');
-              }}
-            />
-            <ModePill
-              active={mode === 'laser'}
-              label="Laser"
-              emoji="🔴"
-              onPress={() => {
-                tap();
-                setMode('laser');
-              }}
-            />
-          </View>
-
           {mode === 'creatures' ? (
             <View style={styles.worldBlock}>
               <View style={styles.worldRow}>
@@ -381,6 +360,27 @@ export default function Index() {
           ) : (
             <Text style={styles.laserNote}>Drag to steer · Tap the red dot to catch</Text>
           )}
+
+          <View style={styles.modeRow}>
+            <ModePill
+              active={mode === 'creatures'}
+              label="Creatures"
+              emoji="🦎"
+              onPress={() => {
+                tap();
+                setMode('creatures');
+              }}
+            />
+            <ModePill
+              active={mode === 'laser'}
+              label="Laser"
+              emoji="🔴"
+              onPress={() => {
+                tap();
+                setMode('laser');
+              }}
+            />
+          </View>
 
           <Pressable
             onPress={start}
