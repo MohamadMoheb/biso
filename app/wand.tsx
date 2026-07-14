@@ -146,7 +146,7 @@ export default function WandScreen() {
       />
 
       {!paused && !sessionOver ? (
-        <Text style={styles.hint}>Drag the feather · or let it float</Text>
+        <Text style={styles.hint}>Drag the feather, or let it float</Text>
       ) : null}
 
       {paused && !sessionOver ? (
