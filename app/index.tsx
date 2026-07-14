@@ -7,6 +7,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -33,6 +34,114 @@ import { CatCamGallery } from '../src/components/CatCamGallery';
 import { useSettings } from '../src/settings/SettingsContext';
 import { type PlayMode } from '../src/settings/types';
 import { THEME_LIST, THEMES, type ThemeId } from '../src/themes';
+import { useUiScale } from '../src/utils/layout';
+
+const displayFont = Platform.select({
+  ios: 'Georgia',
+  android: 'serif',
+  default: 'Georgia, "Palatino Linotype", Palatino, serif',
+});
+
+const bodyFont = Platform.select({
+  ios: 'Avenir Next',
+  android: 'sans-serif',
+  default: 'System',
+});
+
+function BrandMark({ size }: { size: number }) {
+  const pulse = useSharedValue(1);
+  const under = useSharedValue(0);
+  const lift = useSharedValue(0);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.35, { duration: 780, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: 780, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1,
+      false,
+    );
+    under.value = withDelay(180, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
+    lift.value = withRepeat(
+      withSequence(
+        withTiming(-1.5, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1,
+      false,
+    );
+  }, [lift, pulse, under]);
+
+  const dotStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+    opacity: 0.75 + 0.25 * ((pulse.value - 1) / 0.35),
+  }));
+
+  const underStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: under.value }],
+    opacity: 0.35 + 0.45 * under.value,
+  }));
+
+  const wrapStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: lift.value }],
+  }));
+
+  const letter = {
+    fontFamily: displayFont,
+    fontSize: size,
+    fontWeight: '700' as const,
+    color: '#FFF6E8',
+    letterSpacing: -1.2,
+    lineHeight: size * 1.05,
+    ...(Platform.OS === 'web'
+      ? ({ textShadow: '0 2px 14px rgba(240,195,106,0.35)' } as object)
+      : {
+          textShadowColor: 'rgba(240,195,106,0.4)',
+          textShadowOffset: { width: 0, height: 2 },
+          textShadowRadius: 10,
+        }),
+  };
+
+  const stemW = Math.max(10, Math.round(size * 0.28));
+  const dot = Math.max(5, Math.round(size * 0.18));
+
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(480).springify().damping(16)}
+      style={[styles.brandWrap, wrapStyle]}
+      accessibilityRole="header"
+      accessibilityLabel="Biso"
+    >
+      <View style={styles.brandRow}>
+        <Text style={letter}>B</Text>
+        <View style={[styles.brandI, { width: stemW }]}>
+          <Animated.View
+            style={[
+              styles.brandDot,
+              {
+                width: dot,
+                height: dot,
+                borderRadius: dot / 2,
+                marginBottom: Math.max(2, size * 0.04),
+              },
+              dotStyle,
+            ]}
+          />
+          <Text style={[letter, styles.brandStem]}>ı</Text>
+        </View>
+        <Text style={letter}>so</Text>
+      </View>
+      <Animated.View
+        style={[
+          styles.brandUnder,
+          { height: Math.max(2, Math.round(size * 0.06)), borderRadius: 99 },
+          underStyle,
+        ]}
+      />
+    </Animated.View>
+  );
+}
 
 function FloatEmoji({
   emoji,
@@ -110,41 +219,45 @@ function FloatEmoji({
 function CreaturesStage({ themeId, width, height }: { themeId: ThemeId; width: number; height: number }) {
   const theme = THEMES[themeId];
   const samples = theme.entities.slice(0, 5);
+  // Scale with stage so floaters read clearly on large web canvases.
+  const base = Math.max(64, Math.min(96, Math.round(Math.min(width, height) * 0.16)));
 
   return (
     <View style={StyleSheet.absoluteFill}>
       <ThemeBackground theme={theme} />
-      <FloatEmoji emoji={samples[0]!} left={width * 0.12} top={height * 0.18} delay={0} size={52} />
-      <FloatEmoji emoji={samples[1]!} left={width * 0.62} top={height * 0.14} delay={220} size={44} />
-      <FloatEmoji emoji={samples[2]!} left={width * 0.28} top={height * 0.38} delay={480} size={48} />
-      <FloatEmoji emoji={samples[3]!} left={width * 0.68} top={height * 0.42} delay={700} size={40} />
-      <FloatEmoji emoji={samples[4] ?? samples[0]!} left={width * 0.44} top={height * 0.26} delay={900} size={36} />
+      <FloatEmoji emoji={samples[0]!} left={width * 0.12} top={height * 0.16} delay={0} size={base} />
+      <FloatEmoji emoji={samples[1]!} left={width * 0.58} top={height * 0.12} delay={220} size={Math.round(base * 0.9)} />
+      <FloatEmoji emoji={samples[2]!} left={width * 0.26} top={height * 0.38} delay={480} size={Math.round(base * 0.95)} />
+      <FloatEmoji emoji={samples[3]!} left={width * 0.66} top={height * 0.42} delay={700} size={Math.round(base * 0.85)} />
+      <FloatEmoji emoji={samples[4] ?? samples[0]!} left={width * 0.42} top={height * 0.24} delay={900} size={Math.round(base * 0.8)} />
     </View>
   );
 }
 
 function LaserStage({ width, height }: { width: number; height: number }) {
-  const x = useSharedValue(width * 0.2);
-  const y = useSharedValue(height * 0.25);
+  const x = useSharedValue(width * 0.45);
+  const y = useSharedValue(height * 0.28);
   const glow = useSharedValue(1);
 
   useEffect(() => {
-    const maxX = Math.max(40, width - 60);
-    const maxY = Math.max(40, height * 0.55);
+    const minX = Math.max(24, width * 0.08);
+    const maxX = Math.max(minX + 40, width * 0.88);
+    const minY = Math.max(24, height * 0.08);
+    const maxY = Math.max(minY + 40, height * 0.72);
     x.value = withRepeat(
       withSequence(
-        withTiming(maxX * 0.85, { duration: 1700, easing: Easing.inOut(Easing.cubic) }),
-        withTiming(maxX * 0.15, { duration: 1500, easing: Easing.inOut(Easing.cubic) }),
-        withTiming(maxX * 0.55, { duration: 1300, easing: Easing.inOut(Easing.cubic) }),
+        withTiming(maxX, { duration: 1700, easing: Easing.inOut(Easing.cubic) }),
+        withTiming(minX, { duration: 1500, easing: Easing.inOut(Easing.cubic) }),
+        withTiming((minX + maxX) * 0.55, { duration: 1300, easing: Easing.inOut(Easing.cubic) }),
       ),
       -1,
       false,
     );
     y.value = withRepeat(
       withSequence(
-        withTiming(maxY * 0.7, { duration: 1400, easing: Easing.inOut(Easing.cubic) }),
-        withTiming(maxY * 0.2, { duration: 1200, easing: Easing.inOut(Easing.cubic) }),
-        withTiming(maxY * 0.5, { duration: 1600, easing: Easing.inOut(Easing.cubic) }),
+        withTiming(maxY, { duration: 1400, easing: Easing.inOut(Easing.cubic) }),
+        withTiming(minY, { duration: 1200, easing: Easing.inOut(Easing.cubic) }),
+        withTiming((minY + maxY) * 0.45, { duration: 1600, easing: Easing.inOut(Easing.cubic) }),
       ),
       -1,
       false,
@@ -218,28 +331,42 @@ function IconToggle({
   iconOff,
   label,
   onPress,
+  size = 42,
+  iconSize = 20,
 }: {
   on: boolean;
   iconOn: ComponentProps<typeof Ionicons>['name'];
   iconOff: ComponentProps<typeof Ionicons>['name'];
   label: string;
   onPress: () => void;
+  size?: number;
+  iconSize?: number;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.iconToggle, on && styles.iconToggleOn]}
+      hitSlop={6}
+      style={[
+        styles.iconToggle,
+        {
+          width: size,
+          height: size,
+          borderRadius: Math.round(size * 0.33),
+        },
+        on && styles.iconToggleOn,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: on }}
     >
-      <Ionicons name={on ? iconOn : iconOff} size={20} color={on ? '#1A1208' : '#E8DFD0'} />
+      <Ionicons name={on ? iconOn : iconOff} size={iconSize} color={on ? '#1A1208' : '#E8DFD0'} />
     </Pressable>
   );
 }
 
 export default function Index() {
   const { width, height } = useWindowDimensions();
+  const ui = useUiScale();
   const {
     settings,
     setSoundEnabled,
@@ -280,33 +407,48 @@ export default function Index() {
     transform: [{ scale: playScale.value }],
   }));
 
-  const stageH = Math.min(height * 0.52, 420);
+  /** Float samples stay in the upper zone; the stage itself is full-bleed. */
+  const floatH = Math.min(height * (ui.compactH ? 0.4 : 0.48), 400);
+  const toggleSize = ui.narrow ? Math.max(40, ui.s(38)) : ui.tap;
+  const toggleIcon = ui.narrow ? 18 : ui.s(20);
+  const orb = ui.narrow ? 52 : ui.s(58);
 
   return (
     <View style={styles.root}>
-      <View style={[styles.stageShell, { height: stageH + 120 }]}>
+      {/* Full-bleed world stage — never cut into a black band under the dock */}
+      <View style={styles.stageShell}>
         {mode === 'creatures' ? (
-          <CreaturesStage themeId={themeId} width={width} height={stageH + 80} />
+          <CreaturesStage themeId={themeId} width={width} height={floatH} />
         ) : (
-          <LaserStage width={width} height={stageH + 80} />
+          <LaserStage width={width} height={floatH} />
         )}
         <LinearGradient
-          colors={['rgba(6,8,10,0.55)', 'transparent', 'transparent', 'rgba(6,8,10,0.95)']}
-          locations={[0, 0.18, 0.55, 1]}
+          colors={[
+            'rgba(6,8,10,0.5)',
+            'transparent',
+            'rgba(6,8,10,0.22)',
+            'rgba(6,8,10,0.48)',
+          ]}
+          locations={[0, 0.16, 0.62, 1]}
           style={StyleSheet.absoluteFill}
           pointerEvents="none"
         />
       </View>
 
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']} pointerEvents="box-none">
-        <Animated.View entering={FadeIn.duration(400)} style={styles.topRow}>
-          <Text style={styles.brand}>Biso</Text>
-          <View style={styles.topActions}>
+        <Animated.View
+          entering={FadeIn.duration(400)}
+          style={[styles.topRow, { paddingHorizontal: ui.padX, gap: ui.s(8) }]}
+        >
+          <BrandMark size={ui.font(ui.narrow ? 34 : 42)} />
+          <View style={[styles.topActions, { gap: ui.narrow ? 6 : ui.s(8), flexShrink: 0 }]}>
             <IconToggle
               on={settings.soundEnabled}
               iconOn="volume-high"
               iconOff="volume-mute"
               label={settings.soundEnabled ? 'Mute' : 'Unmute'}
+              size={toggleSize}
+              iconSize={toggleIcon}
               onPress={() => {
                 tap();
                 setSoundEnabled(!settings.soundEnabled);
@@ -317,6 +459,8 @@ export default function Index() {
               iconOn="pulse"
               iconOff="pulse-outline"
               label={settings.hapticsEnabled ? 'Haptics off' : 'Haptics on'}
+              size={toggleSize}
+              iconSize={toggleIcon}
               onPress={() => {
                 tap();
                 setHapticsEnabled(!settings.hapticsEnabled);
@@ -327,6 +471,8 @@ export default function Index() {
               iconOn="camera"
               iconOff="camera-outline"
               label={settings.catCamEnabled ? 'Cat Cam off' : 'Cat Cam on'}
+              size={toggleSize}
+              iconSize={toggleIcon}
               onPress={() => {
                 tap();
                 setCatCamEnabled(!settings.catCamEnabled);
@@ -337,18 +483,48 @@ export default function Index() {
                 tap();
                 setGalleryOpen(true);
               }}
-              style={styles.iconToggle}
+              hitSlop={6}
+              style={[
+                styles.iconToggle,
+                {
+                  width: toggleSize,
+                  height: toggleSize,
+                  borderRadius: Math.round(toggleSize * 0.33),
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Open Cat Cam gallery"
             >
-              <Ionicons name="images-outline" size={20} color="#E8DFD0" />
+              <Ionicons name="images-outline" size={toggleIcon} color="#E8DFD0" />
             </Pressable>
           </View>
         </Animated.View>
 
         <View style={styles.spacer} pointerEvents="none" />
 
-        <Animated.View entering={FadeInDown.delay(80).duration(420)} style={styles.dock}>
+        <Animated.View
+          entering={FadeInDown.delay(80).duration(420)}
+          style={[
+            styles.dock,
+            {
+              marginHorizontal: ui.padX - 2,
+              marginBottom: ui.compactH ? 4 : 8,
+              paddingHorizontal: ui.s(14),
+              paddingTop: ui.compactH ? ui.s(10) : ui.s(14),
+              paddingBottom: ui.compactH ? ui.s(10) : ui.s(14),
+              borderRadius: ui.s(28),
+              gap: ui.compactH ? 8 : 12,
+              maxHeight: ui.compactH ? height * 0.52 : undefined,
+            },
+          ]}
+        >
+          <ScrollView
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ gap: ui.compactH ? 8 : 12 }}
+          >
           {mode === 'creatures' ? (
             <View style={styles.worldBlock}>
               <View style={styles.worldRow}>
@@ -361,6 +537,7 @@ export default function Index() {
                         tap();
                         setThemeId(theme.id);
                       }}
+                      hitSlop={8}
                       style={[styles.worldOrb, on && styles.worldOrbOn]}
                       accessibilityRole="button"
                       accessibilityState={{ selected: on }}
@@ -368,24 +545,44 @@ export default function Index() {
                     >
                       <LinearGradient
                         colors={theme.gradient}
-                        style={[styles.worldOrbFill, on && styles.worldOrbFillOn]}
+                        style={[
+                          styles.worldOrbFill,
+                          {
+                            width: orb,
+                            height: orb,
+                            borderRadius: orb / 2,
+                          },
+                          on && styles.worldOrbFillOn,
+                        ]}
                       >
-                        <Text style={styles.worldOrbEmoji}>{theme.emoji}</Text>
+                        <Text style={[styles.worldOrbEmoji, { fontSize: ui.font(26) }]}>
+                          {theme.emoji}
+                        </Text>
                       </LinearGradient>
-                      <Text style={[styles.worldOrbLabel, on && styles.worldOrbLabelOn]}>
+                      <Text
+                        style={[
+                          styles.worldOrbLabel,
+                          { fontSize: ui.font(12) },
+                          on && styles.worldOrbLabelOn,
+                        ]}
+                      >
                         {theme.title}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
-              <Text style={styles.worldHint}>{THEMES[themeId].subtitle}</Text>
+              <Text style={[styles.worldHint, { fontSize: ui.font(13) }]}>
+                {THEMES[themeId].subtitle}
+              </Text>
             </View>
           ) : (
-            <Text style={styles.laserNote}>Drag to steer · Tap the red dot to catch</Text>
+            <Text style={[styles.laserNote, { fontSize: ui.font(13) }]}>
+              Drag to steer · Tap the red dot to catch
+            </Text>
           )}
 
-          <View style={styles.modeRow}>
+          <View style={[styles.modeRow, { gap: ui.s(10) }]}>
             <ModePill
               active={mode === 'creatures'}
               label="Creatures"
@@ -411,21 +608,52 @@ export default function Index() {
             accessibilityRole="button"
             accessibilityLabel={`Play ${mode === 'creatures' ? 'Creatures' : 'Laser'}`}
           >
-            <Animated.View style={[styles.playBtn, playStyle]}>
-              <Ionicons name="play" size={22} color="#1A1208" />
-              <Text style={styles.playText}>
+            <Animated.View
+              style={[
+                styles.playBtn,
+                playStyle,
+                {
+                  minHeight: Math.max(ui.tap + 8, ui.s(56)),
+                  borderRadius: ui.s(18),
+                  gap: ui.s(8),
+                },
+              ]}
+            >
+              <Ionicons name="play" size={ui.s(22)} color="#1A1208" />
+              <Text style={[styles.playText, { fontSize: ui.font(18) }]}>
                 Play {mode === 'creatures' ? THEMES[themeId].title : 'Laser'}
               </Text>
             </Animated.View>
           </Pressable>
+          </ScrollView>
         </Animated.View>
       </SafeAreaView>
 
       <Modal visible={tipOpen} transparent animationType="fade">
-        <View style={styles.tipScrim}>
-          <View style={styles.tipCard}>
-            <Text style={styles.tipTitle}>For cats, not thumbs</Text>
-            <Text style={styles.tipBody}>
+        <View
+          style={[
+            styles.tipScrim,
+            {
+              paddingHorizontal: ui.padX + 8,
+              paddingTop: ui.insets.top + 16,
+              paddingBottom: ui.insets.bottom + 16,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.tipCard,
+              {
+                maxWidth: Math.min(360, ui.width - ui.padX * 2),
+                borderRadius: ui.s(24),
+                padding: ui.compactH ? ui.s(18) : ui.s(24),
+              },
+            ]}
+          >
+            <Text style={[styles.tipTitle, { fontSize: ui.font(ui.compactH ? 24 : 28) }]}>
+              For cats, not thumbs
+            </Text>
+            <Text style={[styles.tipBody, { fontSize: ui.font(15), lineHeight: ui.font(23) }]}>
               Lay the phone flat. Tap floating creatures to wake them, then hit Play. Hold controls in
               play so paws do not leave by accident. Turn on Cat Cam for surprise POV selfies.
             </Text>
@@ -434,9 +662,9 @@ export default function Index() {
                 markTipSeen();
                 setTipOpen(false);
               }}
-              style={styles.tipBtn}
+              style={[styles.tipBtn, { minHeight: ui.tap, borderRadius: ui.s(14) }]}
             >
-              <Text style={styles.tipBtnText}>Let&apos;s play</Text>
+              <Text style={[styles.tipBtnText, { fontSize: ui.font(16) }]}>Let&apos;s play</Text>
             </Pressable>
           </View>
         </View>
@@ -446,18 +674,6 @@ export default function Index() {
     </View>
   );
 }
-
-const displayFont = Platform.select({
-  ios: 'Georgia',
-  android: 'serif',
-  default: 'Georgia',
-});
-
-const bodyFont = Platform.select({
-  ios: 'Avenir Next',
-  android: 'sans-serif',
-  default: 'System',
-});
 
 const styles = StyleSheet.create({
   root: {
@@ -496,27 +712,43 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   topRow: {
-    paddingHorizontal: 20,
     paddingTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  brand: {
-    fontFamily: displayFont,
-    fontSize: 34,
-    color: '#F7F0E4',
-    fontWeight: '700',
-    letterSpacing: -0.8,
+  brandWrap: {
+    flexShrink: 1,
+    alignItems: 'flex-start',
+    gap: 4,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  brandI: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  brandStem: {
+    textAlign: 'center',
+  },
+  brandDot: {
+    backgroundColor: '#FF2E3C',
+    shadowColor: '#FF4455',
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  brandUnder: {
+    alignSelf: 'stretch',
+    backgroundColor: '#F0C36A',
   },
   topActions: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
   },
   iconToggle: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -531,20 +763,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dock: {
-    marginHorizontal: 14,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 14,
-    borderRadius: 28,
-    backgroundColor: 'rgba(12,14,16,0.72)',
+    backgroundColor: 'rgba(10,12,14,0.55)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    gap: 12,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   modeRow: {
     flexDirection: 'row',
-    gap: 10,
   },
   modePill: {
     flexDirection: 'row',
@@ -554,7 +778,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    minHeight: 52,
+    minHeight: 48,
   },
   modePillOn: {
     backgroundColor: 'rgba(240,195,106,0.18)',
@@ -597,9 +821,6 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.06 }],
   },
   worldOrbFill: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -655,20 +876,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(4,6,8,0.78)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
   },
   tipCard: {
     width: '100%',
-    maxWidth: 360,
-    borderRadius: 24,
     backgroundColor: '#12151A',
-    padding: 24,
     borderWidth: 1,
     borderColor: 'rgba(240,195,106,0.25)',
   },
   tipTitle: {
     fontFamily: displayFont,
-    fontSize: 28,
     fontWeight: '700',
     color: '#F7F0E4',
     textAlign: 'center',
@@ -676,22 +892,19 @@ const styles = StyleSheet.create({
   tipBody: {
     marginTop: 10,
     fontFamily: bodyFont,
-    fontSize: 16,
-    lineHeight: 24,
     color: 'rgba(247,240,228,0.65)',
     textAlign: 'center',
   },
   tipBtn: {
     marginTop: 18,
     backgroundColor: '#F0C36A',
-    borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   tipBtnText: {
     color: '#1A1208',
     fontFamily: bodyFont,
-    fontSize: 16,
     fontWeight: '700',
   },
 });
