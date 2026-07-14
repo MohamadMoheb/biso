@@ -152,12 +152,14 @@ export default function WandScreen() {
       {paused && !sessionOver ? (
         <Pressable
           style={styles.pauseScrim}
-          onPress={() => setPaused(false)}
+          onLongPress={() => setPaused(false)}
+          delayLongPress={700}
           accessibilityRole="button"
           accessibilityLabel="Resume play"
+          accessibilityHint="Hold to resume"
         >
           <Text style={styles.pauseTitle}>Paused</Text>
-          <Text style={styles.pauseHint}>Tap anywhere to resume</Text>
+          <Text style={styles.pauseHint}>Hold to resume</Text>
         </Pressable>
       ) : null}
 
