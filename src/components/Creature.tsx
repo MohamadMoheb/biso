@@ -266,7 +266,12 @@ function CreatureComponent({
       nx: number,
       ny: number,
       pace: number,
-      opts?: { soundGap?: [number, number]; turnPause?: boolean },
+      opts?: {
+        soundGap?: [number, number];
+        turnPause?: boolean;
+        /** travel feel: slow creep, normal, or accelerating zoom */
+        feel?: 'lurk' | 'wander' | 'zoom';
+      },
     ) => {
       if (!aliveRef.current || caught.value) return;
       await waitWhilePaused();
@@ -279,7 +284,9 @@ function CreatureComponent({
           facing.value = facingToward(posRef.current.x, nx);
         }
       } else {
-        await faceTowardX(nx, { turnPause: opts?.turnPause });
+        await faceTowardX(nx, {
+          turnPause: opts?.feel === 'zoom' ? false : opts?.turnPause,
+        });
       }
       if (!aliveRef.current || caught.value) return;
       await waitWhilePaused();
@@ -287,16 +294,28 @@ function CreatureComponent({
 
       const dist = Math.hypot(nx - posRef.current.x, ny - posRef.current.y);
       const mult = Math.max(0.35, speedMultRef.current);
-      const speed = Math.max(28, profile.cruiseSpeed * profile.speed * mult * pace);
-      // Keep floors low so Calm/Wild stay distinct on short hops (old 520ms floor washed pace out).
-      const minDur = Math.round(220 / Math.sqrt(mult));
-      const maxDur = Math.round(5200 / Math.sqrt(mult));
+      const feel = opts?.feel ?? 'wander';
+      const feelBoost = feel === 'zoom' ? rand(2.4, 3.6) : feel === 'lurk' ? rand(0.35, 0.55) : rand(0.85, 1.2);
+      const speed = Math.max(28, profile.cruiseSpeed * profile.speed * mult * pace * feelBoost);
+      const minDur =
+        feel === 'zoom'
+          ? Math.round(90 / Math.sqrt(mult))
+          : feel === 'lurk'
+            ? Math.round(280 / Math.sqrt(mult))
+            : Math.round(150 / Math.sqrt(mult));
+      const maxDur =
+        feel === 'zoom'
+          ? Math.round(1600 / Math.sqrt(mult))
+          : feel === 'lurk'
+            ? Math.round(4200 / Math.sqrt(mult))
+            : Math.round(3000 / Math.sqrt(mult));
       const duration = Math.round(clamp((dist / speed) * 1000, minDur, maxDur));
       const steps = Math.max(0.8, dist / stridePx);
 
-      const gap = opts?.soundGap ?? [480, 720];
+      const gap =
+        opts?.soundGap ??
+        (feel === 'zoom' ? ([80, 150] as [number, number]) : feel === 'lurk' ? [620, 980] : [420, 680]);
       const endAt = Date.now() + duration;
-      // Sparse move sounds — global throttle in the sound hook also helps.
       void (async () => {
         while (aliveRef.current && !caught.value && Date.now() < endAt) {
           if (pausedRef.current) {
@@ -308,76 +327,154 @@ function CreatureComponent({
         }
       })();
 
-      const pathEase = isWalker(gait)
-        ? Easing.linear
-        : gait === 'bunny'
-          ? Easing.inOut(Easing.quad)
-          : Easing.inOut(Easing.sin);
+      const pathEase =
+        feel === 'zoom'
+          ? Easing.in(Easing.cubic)
+          : feel === 'lurk'
+            ? Easing.out(Easing.quad)
+            : isWalker(gait)
+              ? Easing.linear
+              : gait === 'bunny'
+                ? Easing.inOut(Easing.quad)
+                : Easing.inOut(Easing.sin);
 
-      setPhase(phaseRef.current + steps, duration);
+      setPhase(phaseRef.current + steps * (feel === 'zoom' ? 1.6 : 1), duration);
       await moveTo(nx, ny, duration, pathEase);
       await waitWhilePaused();
       if (!aliveRef.current || caught.value) return;
       idleMotion();
     };
 
+    const playBounds = () => {
+      const margin = Math.max(8, creature.size * 0.06);
+      return {
+        loX: Math.max(minX, margin),
+        hiX: Math.min(maxX, screenWidth - creature.size - margin),
+        loY: Math.max(minY, margin),
+        hiY: Math.min(maxY, screenHeight - creature.size - margin),
+      };
+    };
+
+    const edgeHidePoint = () => {
+      const { loX, hiX, loY, hiY } = playBounds();
+      const band = Math.max(24, creature.size * 0.55);
+      const roll = Math.random();
+      if (roll < 0.25) return { x: loX + rand(0, band * 0.35), y: rand(loY, hiY) };
+      if (roll < 0.5) return { x: hiX - rand(0, band * 0.35), y: rand(loY, hiY) };
+      if (roll < 0.75) return { x: rand(loX, hiX), y: loY + rand(0, band * 0.35) };
+      return { x: rand(loX, hiX), y: hiY - rand(0, band * 0.35) };
+    };
+
+    const cornerHidePoint = () => {
+      const { loX, hiX, loY, hiY } = playBounds();
+      const inset = Math.max(10, creature.size * 0.2);
+      const corners = [
+        { x: loX + inset, y: loY + inset },
+        { x: hiX - inset, y: loY + inset },
+        { x: loX + inset, y: hiY - inset },
+        { x: hiX - inset, y: hiY - inset },
+      ];
+      const pick = corners[Math.floor(Math.random() * corners.length)]!;
+      return {
+        x: clamp(pick.x + rand(-inset, inset), loX, hiX),
+        y: clamp(pick.y + rand(-inset, inset), loY, hiY),
+      };
+    };
+
+    const farDartPoint = () => {
+      const { loX, hiX, loY, hiY } = playBounds();
+      const cx = posRef.current.x;
+      const cy = posRef.current.y;
+      const span = Math.min(screenWidth, screenHeight);
+      for (let i = 0; i < 10; i++) {
+        const x = rand(loX, hiX);
+        const y = rand(loY, hiY);
+        if (Math.hypot(x - cx, y - cy) > span * 0.45) return { x, y };
+      }
+      return edgeHidePoint();
+    };
+
+    /** Sweep nearly edge-to-edge for a zoom streak. */
+    const zoomCorridorPoint = () => {
+      const { loX, hiX, loY, hiY } = playBounds();
+      const axis = Math.random() < 0.55 ? 'x' : 'y';
+      if (axis === 'x') {
+        const toRight = posRef.current.x < (loX + hiX) / 2;
+        return {
+          x: toRight ? hiX - rand(0, creature.size * 0.2) : loX + rand(0, creature.size * 0.2),
+          y: clamp(posRef.current.y + rand(-screenHeight * 0.2, screenHeight * 0.2), loY, hiY),
+        };
+      }
+      const toBottom = posRef.current.y < (loY + hiY) / 2;
+      return {
+        x: clamp(posRef.current.x + rand(-screenWidth * 0.2, screenWidth * 0.2), loX, hiX),
+        y: toBottom ? hiY - rand(0, creature.size * 0.2) : loY + rand(0, creature.size * 0.2),
+      };
+    };
+
     const fieldPoint = (preferForward = true) => {
-      const insetX = screenWidth * 0.14;
-      const insetY = screenHeight * 0.14;
-      const loX = Math.max(minX, insetX);
-      const hiX = Math.min(maxX, screenWidth - insetX - creature.size);
-      const loY = Math.max(minY, insetY);
-      const hiY = Math.min(maxY, screenHeight - insetY - creature.size);
+      const { loX, hiX, loY, hiY } = playBounds();
       const dir = facing.value >= 0 ? 1 : -1;
 
       if (gait === 'crab') {
-        return {
-          x: rand(loX, hiX),
-          y: clamp(posRef.current.y + rand(-creature.size * 0.2, creature.size * 0.2), loY, hiY),
-        };
+        return Math.random() < 0.55
+          ? edgeHidePoint()
+          : {
+              x: rand(loX, hiX),
+              y: clamp(posRef.current.y + rand(-creature.size * 0.4, creature.size * 0.4), loY, hiY),
+            };
       }
 
-      // Bias destinations ahead of current facing so most motion is forward.
       if (preferForward && (isSwimmer(gait) || isWalker(gait) || isFlyer(gait) || gait === 'bunny')) {
-        const goForward = Math.random() < 0.8;
+        const style = Math.random();
+        if (style < 0.22) return edgeHidePoint();
+        if (style < 0.38) return farDartPoint();
+
+        const goForward = Math.random() < 0.7;
         const sign = goForward ? dir : -dir;
-        const reachScale = 0.75 + 0.55 * Math.max(0.35, speedMultRef.current);
-        const reach = creature.size * rand(1.4, 3.2) * reachScale;
-        const dx = sign * reach * rand(0.55, 1);
+        const reachScale = 1.2 + 0.5 * Math.max(0.35, speedMultRef.current);
+        const reach = creature.size * rand(2.4, 5.2) * reachScale;
+        const dx = sign * reach * rand(0.65, 1);
         const dyRange =
           (isSwimmer(gait)
-            ? creature.size * 0.85
+            ? creature.size * 1.5
             : isFlyer(gait)
-              ? creature.size * 1.6
-              : creature.size * 1.1) * reachScale;
+              ? creature.size * 2.3
+              : creature.size * 1.8) * reachScale;
         return {
           x: clamp(posRef.current.x + dx, loX, hiX),
           y: clamp(posRef.current.y + rand(-dyRange, dyRange), loY, hiY),
         };
       }
 
-      return { x: rand(loX, hiX), y: rand(loY, hiY) };
+      return Math.random() < 0.45 ? edgeHidePoint() : { x: rand(loX, hiX), y: rand(loY, hiY) };
     };
 
-    const doPause = async () => {
+    const doLurk = async () => {
       idleMotion();
-      const pauseScale = 1 / Math.max(0.4, speedMultRef.current);
-      await wait(
-        Math.round(
-          (gait === 'bee' || gait === 'shrimp' || gait === 'squirrel'
-            ? rand(350, 850)
-            : rand(550, 1400)) * pauseScale,
-        ),
-      );
+      // Creep, stop, peek — small edge-local moves at crawl speed.
+      const peeks = Math.round(rand(1, 3));
+      for (let i = 0; i < peeks; i++) {
+        if (!aliveRef.current || caught.value) return;
+        const base = Math.random() < 0.7 ? edgeHidePoint() : cornerHidePoint();
+        const { loX, hiX, loY, hiY } = playBounds();
+        const target = {
+          x: clamp(base.x + rand(-creature.size * 0.5, creature.size * 0.5), loX, hiX),
+          y: clamp(base.y + rand(-creature.size * 0.5, creature.size * 0.5), loY, hiY),
+        };
+        await travelTo(target.x, target.y, rand(0.7, 1), {
+          feel: 'lurk',
+          soundGap: [700, 1100],
+          turnPause: true,
+        });
+        if (!aliveRef.current || caught.value) return;
+        await wait(Math.round(rand(280, 900) / Math.max(0.5, speedMultRef.current)));
+      }
     };
 
-    const doCruise = async () => {
+    const doWander = async () => {
       const target = fieldPoint(true);
-      const pace = isWalker(gait)
-        ? rand(0.8, 1.05)
-        : isSwimmer(gait)
-          ? rand(0.9, 1.15)
-          : rand(0.85, 1.15);
+      const pace = rand(0.9, 1.25);
 
       if (gait === 'bunny') {
         soundsRef.current.playBurst(emoji);
@@ -388,64 +485,103 @@ function CreatureComponent({
         const apexX = (posRef.current.x + target.x) / 2;
         const apexY = Math.min(posRef.current.y, target.y) - creature.size * rand(0.35, 0.55);
         const upDist = Math.hypot(apexX - posRef.current.x, apexY - posRef.current.y);
-        const hopSpeed = profile.cruiseSpeed * 1.15 * Math.max(0.4, speedMultRef.current);
-        const upDur = Math.round(clamp((upDist / hopSpeed) * 1000, 160, 620));
+        const hopSpeed = profile.cruiseSpeed * 1.4 * Math.max(0.4, speedMultRef.current);
+        const upDur = Math.round(clamp((upDist / hopSpeed) * 1000, 110, 420));
         setPhase(phaseRef.current + 0.5, upDur);
-        // Hop apex without flipping facing mid-jump.
         await moveTo(apexX, apexY, upDur, Easing.out(Easing.quad));
         if (!aliveRef.current || caught.value) return;
         await waitWhilePaused();
         if (!aliveRef.current || caught.value || pausedRef.current) return;
-        await travelTo(target.x, target.y, 1.1, { soundGap: [180, 280], turnPause: false });
+        await travelTo(target.x, target.y, 1.2, {
+          feel: 'wander',
+          soundGap: [140, 220],
+          turnPause: false,
+        });
         return;
       }
 
       if (gait === 'jelly') {
-        const strokes = Math.round(rand(3, 5));
+        const strokes = Math.round(rand(2, 4));
         for (let i = 0; i < strokes; i++) {
           if (!aliveRef.current || caught.value) return;
-          const p = fieldPoint(true);
+          const p = Math.random() < 0.4 ? edgeHidePoint() : fieldPoint(true);
           await travelTo(
-            clamp(posRef.current.x + (p.x - posRef.current.x) * 0.4, minX, maxX),
-            clamp(posRef.current.y + (p.y - posRef.current.y) * 0.4, minY, maxY),
-            0.85,
-            { soundGap: [400, 650] },
+            clamp(posRef.current.x + (p.x - posRef.current.x) * 0.55, minX, maxX),
+            clamp(posRef.current.y + (p.y - posRef.current.y) * 0.55, minY, maxY),
+            rand(0.9, 1.15),
+            { feel: 'wander', soundGap: [320, 520] },
           );
-          await wait(Math.round(rand(180, 360)));
+          await wait(Math.round(rand(80, 200)));
         }
         return;
       }
 
-      await travelTo(target.x, target.y, pace);
+      await travelTo(target.x, target.y, pace, { feel: 'wander' });
     };
 
-    const doBurst = async () => {
+    const doZoom = async () => {
       soundsRef.current.playBurst(emoji);
-      const target = fieldPoint(true);
-      await travelTo(target.x, target.y, rand(1.35, 1.75), { soundGap: [140, 240] });
+      // One or two consecutive full-screen sweeps — accelerate mid-path feel via easing + pace.
+      const legs = Math.random() < 0.45 ? 2 : 1;
+      for (let i = 0; i < legs; i++) {
+        if (!aliveRef.current || caught.value) return;
+        const target = i === 0 && Math.random() < 0.7 ? zoomCorridorPoint() : farDartPoint();
+        await travelTo(target.x, target.y, rand(1.1, 1.4), {
+          feel: 'zoom',
+          soundGap: [70, 130],
+          turnPause: false,
+        });
+        if (i < legs - 1) await wait(Math.round(rand(20, 70)));
+      }
+      // Soft landing after a sprint.
+      if (aliveRef.current && !caught.value && Math.random() < 0.55) {
+        await wait(Math.round(rand(120, 380)));
+      }
+    };
+
+    const doFakeOut = async () => {
+      // Feint one way, then rocket the other — unpredictable.
+      const { loX, hiX, loY, hiY } = playBounds();
+      const feint = {
+        x: clamp(posRef.current.x + rand(-creature.size * 1.2, creature.size * 1.2), loX, hiX),
+        y: clamp(posRef.current.y + rand(-creature.size * 1.2, creature.size * 1.2), loY, hiY),
+      };
+      await travelTo(feint.x, feint.y, 0.9, { feel: 'lurk', turnPause: false, soundGap: [400, 600] });
+      if (!aliveRef.current || caught.value) return;
+      await wait(Math.round(rand(60, 180)));
+      if (!aliveRef.current || caught.value) return;
+      soundsRef.current.playBurst(emoji);
+      const bolt = zoomCorridorPoint();
+      await travelTo(bolt.x, bolt.y, 1.25, {
+        feel: 'zoom',
+        turnPause: false,
+        soundGap: [70, 120],
+      });
     };
 
     const enterPlayfield = async () => {
-      const insetX = screenWidth * 0.18;
-      const insetY = screenHeight * 0.18;
-      const target = {
-        x: rand(Math.max(minX, insetX), Math.min(maxX, screenWidth - insetX - creature.size)),
-        y: rand(Math.max(minY, insetY), Math.min(maxY, screenHeight - insetY - creature.size)),
-      };
-
+      const target = Math.random() < 0.65 ? edgeHidePoint() : farDartPoint();
       await faceTowardX(target.x, { turnPause: false });
 
       if (gait === 'crab') {
         facing.value = facingToward(posRef.current.x, target.x);
-        await travelTo(target.x, clamp(start.y, minY, maxY), 0.95, { turnPause: false });
+        await travelTo(target.x, clamp(start.y, minY, maxY), 1.1, {
+          feel: 'wander',
+          turnPause: false,
+        });
       } else if (isSwimmer(gait)) {
-        // Horizontal first (already facing that way), then depth.
-        await travelTo(target.x, clamp(posRef.current.y, minY, maxY), 1, { turnPause: false });
+        await travelTo(target.x, clamp(posRef.current.y, minY, maxY), 1.15, {
+          feel: Math.random() < 0.35 ? 'zoom' : 'wander',
+          turnPause: false,
+        });
         if (aliveRef.current && !caught.value) {
-          await travelTo(target.x, target.y, 0.9, { turnPause: false });
+          await travelTo(target.x, target.y, 1.05, { feel: 'wander', turnPause: false });
         }
       } else {
-        await travelTo(target.x, target.y, 0.95, { turnPause: false });
+        await travelTo(target.x, target.y, 1.15, {
+          feel: Math.random() < 0.4 ? 'zoom' : 'wander',
+          turnPause: false,
+        });
       }
     };
 
@@ -458,7 +594,29 @@ function CreatureComponent({
         screenWidth,
         screenHeight,
       );
-      await travelTo(exit.x, exit.y, 0.95);
+      await travelTo(exit.x, exit.y, 1.15, {
+        feel: Math.random() < 0.5 ? 'zoom' : 'wander',
+        turnPause: false,
+      });
+    };
+
+    type Mood = 'lurk' | 'wander' | 'zoom';
+    const pickMood = (prev: Mood): Mood => {
+      const roll = Math.random();
+      // After lurk → often explode into a zoom. After zoom → settle. Keeps rhythm surprising.
+      if (prev === 'lurk') {
+        if (roll < 0.55) return 'zoom';
+        if (roll < 0.8) return 'wander';
+        return 'lurk';
+      }
+      if (prev === 'zoom') {
+        if (roll < 0.5) return 'lurk';
+        if (roll < 0.8) return 'wander';
+        return 'zoom';
+      }
+      if (roll < 0.28) return 'lurk';
+      if (roll < 0.55) return 'zoom';
+      return 'wander';
     };
 
     const runLife = async () => {
@@ -466,29 +624,32 @@ function CreatureComponent({
       await enterPlayfield();
       if (!aliveRef.current || caught.value) return;
 
-      // Wild: more dashes / fewer sits. Calm: linger more.
       const mult = Math.max(0.4, speedMultRef.current);
-      const pauseChance = clamp(0.34 / mult, 0.1, 0.42);
-      const burstChance = clamp(0.12 * mult, 0.06, 0.32);
-      const actions = Math.round(rand(7, 13) * (0.85 + 0.2 * mult));
-      for (let i = 0; i < actions; i++) {
+      let mood: Mood = Math.random() < 0.45 ? 'wander' : Math.random() < 0.5 ? 'lurk' : 'zoom';
+      const beats = Math.round(rand(8, 15) * (0.9 + 0.2 * mult));
+
+      for (let i = 0; i < beats; i++) {
         if (!aliveRef.current || caught.value) return;
         await waitWhilePaused();
         if (!aliveRef.current || caught.value) return;
-        const roll = Math.random();
-        if (gait === 'bunny' || gait === 'bee') {
-          if (roll < pauseChance) await doPause();
-          else await doCruise();
-        } else if (isWalker(gait) || isSwimmer(gait)) {
-          if (roll < pauseChance) await doPause();
-          else if (roll < 1 - burstChance) await doCruise();
-          else await doBurst();
-        } else if (roll < pauseChance) {
-          await doPause();
-        } else if (roll < 1 - burstChance) {
-          await doCruise();
+
+        // Sticky mood for 1–3 beats, then flip — variable energy, not flat cruise.
+        if (i === 0 || Math.random() < 0.42) {
+          mood = pickMood(mood);
+        }
+
+        if (mood === 'lurk') {
+          await doLurk();
+        } else if (mood === 'zoom') {
+          if (Math.random() < 0.28) await doFakeOut();
+          else await doZoom();
+        } else if (Math.random() < 0.18) {
+          // Occasional sneak tuck while wandering.
+          const hide = Math.random() < 0.5 ? cornerHidePoint() : edgeHidePoint();
+          await travelTo(hide.x, hide.y, rand(1.1, 1.4), { feel: 'wander', turnPause: false });
+          await wait(Math.round(rand(200, 560)));
         } else {
-          await doBurst();
+          await doWander();
         }
       }
 
