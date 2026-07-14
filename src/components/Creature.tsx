@@ -84,6 +84,26 @@ function offscreenSpot(
   }
 }
 
+function exitSpot(
+  edge: SpawnEdge,
+  size: number,
+  currentX: number,
+  currentY: number,
+  screenWidth: number,
+  screenHeight: number,
+): { x: number; y: number } {
+  switch (edge) {
+    case 'left':
+      return { x: -size * 1.15, y: currentY };
+    case 'right':
+      return { x: screenWidth + size * 0.35, y: currentY };
+    case 'top':
+      return { x: currentX, y: -size * 1.15 };
+    case 'bottom':
+      return { x: currentX, y: screenHeight + size * 0.35 };
+  }
+}
+
 function isFlyer(gait: Gait): boolean {
   return gait === 'butterfly' || gait === 'bird' || gait === 'bee';
 }
@@ -130,6 +150,7 @@ function CreatureComponent({
 
   const aliveRef = useRef(true);
   const pausedRef = useRef(paused);
+  const speedMultRef = useRef(speedMultiplier);
   const posRef = useRef({ x: start.x, y: start.y });
   const phaseRef = useRef(0);
   const soundsRef = useRef(sounds);
@@ -137,6 +158,7 @@ function CreatureComponent({
   const pauseResolversRef = useRef<Array<() => void>>([]);
   soundsRef.current = sounds;
   pausedRef.current = paused;
+  speedMultRef.current = speedMultiplier;
 
   // Freeze in-flight motion when paused; wake waiters on resume.
   useEffect(() => {
@@ -199,7 +221,8 @@ function CreatureComponent({
       if (next === facing.value) return;
       facing.value = next;
       if (opts?.turnPause !== false) {
-        await wait(Math.round(rand(90, 180)));
+        const turnScale = 1 / Math.max(0.4, speedMultRef.current);
+        await wait(Math.round(rand(90, 180) * turnScale));
       }
     };
 
@@ -210,7 +233,10 @@ function CreatureComponent({
         phase.value = phaseRef.current;
         return;
       }
-      setPhase(phaseRef.current + 1.25, Math.round(1300 / profile.speed));
+      setPhase(
+        phaseRef.current + 1.25,
+        Math.round(1300 / (profile.speed * Math.max(0.5, speedMultRef.current))),
+      );
     };
 
     const moveTo = (nx: number, ny: number, duration: number, easing: (v: number) => number) =>
@@ -260,8 +286,12 @@ function CreatureComponent({
       if (!aliveRef.current || caught.value || pausedRef.current) return;
 
       const dist = Math.hypot(nx - posRef.current.x, ny - posRef.current.y);
-      const speed = Math.max(32, profile.cruiseSpeed * profile.speed * speedMultiplier * pace);
-      const duration = Math.round(clamp((dist / speed) * 1000, 520, 4000));
+      const mult = Math.max(0.35, speedMultRef.current);
+      const speed = Math.max(28, profile.cruiseSpeed * profile.speed * mult * pace);
+      // Keep floors low so Calm/Wild stay distinct on short hops (old 520ms floor washed pace out).
+      const minDur = Math.round(220 / Math.sqrt(mult));
+      const maxDur = Math.round(5200 / Math.sqrt(mult));
+      const duration = Math.round(clamp((dist / speed) * 1000, minDur, maxDur));
       const steps = Math.max(0.8, dist / stridePx);
 
       const gap = opts?.soundGap ?? [480, 720];
@@ -311,13 +341,15 @@ function CreatureComponent({
       if (preferForward && (isSwimmer(gait) || isWalker(gait) || isFlyer(gait) || gait === 'bunny')) {
         const goForward = Math.random() < 0.8;
         const sign = goForward ? dir : -dir;
-        const reach = creature.size * rand(1.4, 3.2);
+        const reachScale = 0.75 + 0.55 * Math.max(0.35, speedMultRef.current);
+        const reach = creature.size * rand(1.4, 3.2) * reachScale;
         const dx = sign * reach * rand(0.55, 1);
-        const dyRange = isSwimmer(gait)
-          ? creature.size * 0.85
-          : isFlyer(gait)
-            ? creature.size * 1.6
-            : creature.size * 1.1;
+        const dyRange =
+          (isSwimmer(gait)
+            ? creature.size * 0.85
+            : isFlyer(gait)
+              ? creature.size * 1.6
+              : creature.size * 1.1) * reachScale;
         return {
           x: clamp(posRef.current.x + dx, loX, hiX),
           y: clamp(posRef.current.y + rand(-dyRange, dyRange), loY, hiY),
@@ -329,11 +361,12 @@ function CreatureComponent({
 
     const doPause = async () => {
       idleMotion();
+      const pauseScale = 1 / Math.max(0.4, speedMultRef.current);
       await wait(
         Math.round(
-          gait === 'bee' || gait === 'shrimp' || gait === 'squirrel'
+          (gait === 'bee' || gait === 'shrimp' || gait === 'squirrel'
             ? rand(350, 850)
-            : rand(550, 1400),
+            : rand(550, 1400)) * pauseScale,
         ),
       );
     };
@@ -355,7 +388,8 @@ function CreatureComponent({
         const apexX = (posRef.current.x + target.x) / 2;
         const apexY = Math.min(posRef.current.y, target.y) - creature.size * rand(0.35, 0.55);
         const upDist = Math.hypot(apexX - posRef.current.x, apexY - posRef.current.y);
-        const upDur = Math.round(clamp((upDist / (profile.cruiseSpeed * 1.15)) * 1000, 240, 500));
+        const hopSpeed = profile.cruiseSpeed * 1.15 * Math.max(0.4, speedMultRef.current);
+        const upDur = Math.round(clamp((upDist / hopSpeed) * 1000, 160, 620));
         setPhase(phaseRef.current + 0.5, upDur);
         // Hop apex without flipping facing mid-jump.
         await moveTo(apexX, apexY, upDur, Easing.out(Easing.quad));
@@ -416,7 +450,14 @@ function CreatureComponent({
     };
 
     const leavePlayfield = async () => {
-      const exit = offscreenSpot(creature.edge, creature.size, creature.nestX, creature.nestY);
+      const exit = exitSpot(
+        creature.edge,
+        creature.size,
+        posRef.current.x,
+        posRef.current.y,
+        screenWidth,
+        screenHeight,
+      );
       await travelTo(exit.x, exit.y, 0.95);
     };
 
@@ -425,22 +466,26 @@ function CreatureComponent({
       await enterPlayfield();
       if (!aliveRef.current || caught.value) return;
 
-      const actions = Math.round(rand(7, 13));
+      // Wild: more dashes / fewer sits. Calm: linger more.
+      const mult = Math.max(0.4, speedMultRef.current);
+      const pauseChance = clamp(0.34 / mult, 0.1, 0.42);
+      const burstChance = clamp(0.12 * mult, 0.06, 0.32);
+      const actions = Math.round(rand(7, 13) * (0.85 + 0.2 * mult));
       for (let i = 0; i < actions; i++) {
         if (!aliveRef.current || caught.value) return;
         await waitWhilePaused();
         if (!aliveRef.current || caught.value) return;
         const roll = Math.random();
         if (gait === 'bunny' || gait === 'bee') {
-          if (roll < 0.28) await doPause();
+          if (roll < pauseChance) await doPause();
           else await doCruise();
         } else if (isWalker(gait) || isSwimmer(gait)) {
-          if (roll < 0.2) await doPause();
-          else if (roll < 0.85) await doCruise();
+          if (roll < pauseChance) await doPause();
+          else if (roll < 1 - burstChance) await doCruise();
           else await doBurst();
-        } else if (roll < 0.22) {
+        } else if (roll < pauseChance) {
           await doPause();
-        } else if (roll < 0.8) {
+        } else if (roll < 1 - burstChance) {
           await doCruise();
         } else {
           await doBurst();
