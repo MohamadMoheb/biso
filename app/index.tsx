@@ -30,18 +30,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemeBackground, LaserBackground } from '../src/components/ThemeBackground';
 import { useSettings } from '../src/settings/SettingsContext';
-import { DIFFICULTY_META, type Difficulty, type PlayMode } from '../src/settings/types';
+import { type PlayMode } from '../src/settings/types';
 import { THEME_LIST, THEMES, type ThemeId } from '../src/themes';
-
-const COUNT_OPTIONS = [2, 4, 6, 8, 12] as const;
-const SESSION_OPTIONS: Array<0 | 5 | 10 | 15> = [0, 5, 10, 15];
-const DIFFICULTIES = Object.keys(DIFFICULTY_META) as Difficulty[];
-
-function cycle<T>(list: readonly T[], current: T, dir: 1 | -1): T {
-  const i = list.indexOf(current);
-  const next = (i + dir + list.length) % list.length;
-  return list[next]!;
-}
 
 function FloatEmoji({
   emoji,
@@ -221,33 +211,6 @@ function ModePill({
   );
 }
 
-function CycleControl({
-  label,
-  value,
-  onPrev,
-  onNext,
-}: {
-  label: string;
-  value: string;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <View style={styles.cycle}>
-      <Text style={styles.cycleLabel}>{label}</Text>
-      <View style={styles.cycleRow}>
-        <Pressable onPress={onPrev} hitSlop={10} style={styles.cycleBtn} accessibilityLabel={`${label} previous`}>
-          <Ionicons name="chevron-back" size={18} color="#F0E6D2" />
-        </Pressable>
-        <Text style={styles.cycleValue}>{value}</Text>
-        <Pressable onPress={onNext} hitSlop={10} style={styles.cycleBtn} accessibilityLabel={`${label} next`}>
-          <Ionicons name="chevron-forward" size={18} color="#F0E6D2" />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 function IconToggle({
   on,
   iconOn,
@@ -278,9 +241,6 @@ export default function Index() {
   const { width, height } = useWindowDimensions();
   const {
     settings,
-    setCreatureCount,
-    setDifficulty,
-    setSessionMinutes,
     setSoundEnabled,
     setHapticsEnabled,
     markTipSeen,
@@ -295,12 +255,6 @@ export default function Index() {
   useEffect(() => {
     if (ready && !settings.tipSeen) setTipOpen(true);
   }, [ready, settings.tipSeen]);
-
-  const countValue = COUNT_OPTIONS.includes(
-    settings.creatureCount as (typeof COUNT_OPTIONS)[number],
-  )
-    ? (settings.creatureCount as (typeof COUNT_OPTIONS)[number])
-    : 4;
 
   const tap = () => {
     if (settings.hapticsEnabled) void Haptics.selectionAsync().catch(() => undefined);
@@ -427,47 +381,6 @@ export default function Index() {
           ) : (
             <Text style={styles.laserNote}>Drag to steer · Tap the red dot to catch</Text>
           )}
-
-          <View style={styles.controls}>
-            {mode === 'creatures' ? (
-              <CycleControl
-                label="Count"
-                value={String(countValue)}
-                onPrev={() => {
-                  tap();
-                  setCreatureCount(cycle(COUNT_OPTIONS, countValue, -1));
-                }}
-                onNext={() => {
-                  tap();
-                  setCreatureCount(cycle(COUNT_OPTIONS, countValue, 1));
-                }}
-              />
-            ) : null}
-            <CycleControl
-              label="Pace"
-              value={DIFFICULTY_META[settings.difficulty].label}
-              onPrev={() => {
-                tap();
-                setDifficulty(cycle(DIFFICULTIES, settings.difficulty, -1));
-              }}
-              onNext={() => {
-                tap();
-                setDifficulty(cycle(DIFFICULTIES, settings.difficulty, 1));
-              }}
-            />
-            <CycleControl
-              label="Break"
-              value={settings.sessionMinutes === 0 ? 'Off' : `${settings.sessionMinutes}m`}
-              onPrev={() => {
-                tap();
-                setSessionMinutes(cycle(SESSION_OPTIONS, settings.sessionMinutes, -1));
-              }}
-              onNext={() => {
-                tap();
-                setSessionMinutes(cycle(SESSION_OPTIONS, settings.sessionMinutes, 1));
-              }}
-            />
-          </View>
 
           <Pressable
             onPress={start}
@@ -691,46 +604,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(247,240,228,0.55)',
     paddingVertical: 8,
-  },
-  controls: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  cycle: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  cycleLabel: {
-    textAlign: 'center',
-    fontFamily: bodyFont,
-    fontSize: 11,
-    fontWeight: '700',
-    color: 'rgba(247,240,228,0.45)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 2,
-  },
-  cycleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cycleBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cycleValue: {
-    fontFamily: bodyFont,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#F7F0E4',
-    minWidth: 52,
-    textAlign: 'center',
   },
   playBtn: {
     marginTop: 2,
