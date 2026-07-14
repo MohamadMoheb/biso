@@ -1,8 +1,10 @@
-import { Audio } from 'expo-av';
+import { setAudioModeAsync, type AudioSource } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-const LASER_HIT_SOURCE = require('../../assets/sounds/laser.wav');
-const LASER_MOVE_SOURCE = require('../../assets/sounds/laser-zap.wav');
+import { createSfxPool, type SfxPool } from '../audio/sfx';
+
+const LASER_HIT_SOURCE: AudioSource = require('../../assets/sounds/laser.wav');
+const LASER_MOVE_SOURCE: AudioSource = require('../../assets/sounds/laser-zap.wav');
 
 export type LaserSounds = {
   playHit: () => void;
@@ -21,9 +23,8 @@ type Options = {
  */
 export function useLaserSounds(soundEnabled = true, options: Options = {}): LaserSounds {
   const { zapping = false, pace = 0.5 } = options;
-  const hitPoolRef = useRef<Audio.Sound[]>([]);
-  const movePoolRef = useRef<Audio.Sound[]>([]);
-  const readyRef = useRef(false);
+  const hitPoolRef = useRef<SfxPool | null>(null);
+  const movePoolRef = useRef<SfxPool | null>(null);
   const lastHitRef = useRef(0);
   const lastMoveRef = useRef(0);
   const enabledRef = useRef(soundEnabled);
@@ -34,46 +35,16 @@ export function useLaserSounds(soundEnabled = true, options: Options = {}): Lase
   paceRef.current = pace;
 
   useEffect(() => {
-    let mounted = true;
-
-    async function load() {
-      try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-        const loadPool = async (source: number, volume: number, count: number) =>
-          Promise.all(
-            Array.from({ length: count }, async () => {
-              const { sound } = await Audio.Sound.createAsync(source, {
-                volume,
-                shouldPlay: false,
-              });
-              return sound;
-            }),
-          );
-
-        const [hits, moves] = await Promise.all([
-          loadPool(LASER_HIT_SOURCE, 0.45, 3),
-          loadPool(LASER_MOVE_SOURCE, 0.2, 3),
-        ]);
-        if (!mounted) {
-          await Promise.all([...hits, ...moves].map((s) => s.unloadAsync()));
-          return;
-        }
-        hitPoolRef.current = hits;
-        movePoolRef.current = moves;
-        readyRef.current = true;
-      } catch {
-        // Optional
-      }
-    }
-
-    void load();
+    void setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
+    const hits = createSfxPool(LASER_HIT_SOURCE, 0.45, 3);
+    const moves = createSfxPool(LASER_MOVE_SOURCE, 0.2, 3);
+    hitPoolRef.current = hits;
+    movePoolRef.current = moves;
     return () => {
-      mounted = false;
-      readyRef.current = false;
-      const all = [...hitPoolRef.current, ...movePoolRef.current];
-      hitPoolRef.current = [];
-      movePoolRef.current = [];
-      void Promise.all(all.map((s) => s.unloadAsync()));
+      hitPoolRef.current = null;
+      movePoolRef.current = null;
+      hits.dispose();
+      moves.dispose();
     };
   }, []);
 
@@ -95,26 +66,14 @@ export function useLaserSounds(soundEnabled = true, options: Options = {}): Lase
     };
 
     const playMoveTick = () => {
-      if (!readyRef.current || !enabledRef.current || !zappingRef.current) return;
+      if (!enabledRef.current || !zappingRef.current) return;
       const now = Date.now();
       if (now - lastMoveRef.current < 280) return;
       lastMoveRef.current = now;
-      const pool = movePoolRef.current;
-      if (!pool.length) return;
-      const sound = pool[Math.floor(Math.random() * pool.length)];
-      if (!sound) return;
-      const rate = 0.88 + Math.random() * 0.2;
-      void (async () => {
-        try {
-          await sound.stopAsync().catch(() => undefined);
-          await sound.setRateAsync(rate, true);
-          await sound.setVolumeAsync(0.12 + Math.random() * 0.1);
-          await sound.setPositionAsync(0);
-          await sound.playAsync();
-        } catch {
-          void sound.replayAsync().catch(() => undefined);
-        }
-      })();
+      movePoolRef.current?.play({
+        rate: 0.88 + Math.random() * 0.2,
+        volume: 0.12 + Math.random() * 0.1,
+      });
     };
 
     // First tick after a short settle so play start isn't noisy.
@@ -131,26 +90,14 @@ export function useLaserSounds(soundEnabled = true, options: Options = {}): Lase
   }, [soundEnabled, zapping, pace]);
 
   const playHit = useCallback(() => {
-    if (!readyRef.current || !enabledRef.current) return;
+    if (!enabledRef.current) return;
     const now = Date.now();
     if (now - lastHitRef.current < 60) return;
     lastHitRef.current = now;
-    const pool = hitPoolRef.current;
-    if (!pool.length) return;
-    const sound = pool[Math.floor(Math.random() * pool.length)];
-    if (!sound) return;
-    const rate = 0.92 + Math.random() * 0.12;
-    void (async () => {
-      try {
-        await sound.stopAsync().catch(() => undefined);
-        await sound.setRateAsync(rate, true);
-        await sound.setVolumeAsync(0.38 + Math.random() * 0.12);
-        await sound.setPositionAsync(0);
-        await sound.playAsync();
-      } catch {
-        void sound.replayAsync().catch(() => undefined);
-      }
-    })();
+    hitPoolRef.current?.play({
+      rate: 0.92 + Math.random() * 0.12,
+      volume: 0.38 + Math.random() * 0.12,
+    });
   }, []);
 
   return useMemo(() => ({ playHit }), [playHit]);
