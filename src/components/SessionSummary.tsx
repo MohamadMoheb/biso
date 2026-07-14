@@ -1,5 +1,6 @@
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useUiScale } from '../utils/layout';
 import { formatTime } from '../utils/formatTime';
 
 type Props = {
@@ -25,42 +26,86 @@ export function SessionSummary({
   onPlayAgain,
   onHome,
 }: Props) {
+  const ui = useUiScale();
+
   return (
-    <View style={styles.overlay}>
-      <View style={styles.card}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
-        <Text style={[styles.time, !scoreLabel && snapCount <= 0 && styles.timeSolo]}>
+    <View
+      style={[
+        styles.overlay,
+        {
+          paddingHorizontal: ui.padX + 8,
+          paddingTop: ui.insets.top + 16,
+          paddingBottom: ui.insets.bottom + 16,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.card,
+          {
+            maxWidth: Math.min(360, ui.width - ui.padX * 2),
+            borderRadius: ui.s(28),
+            padding: ui.compactH ? ui.s(18) : ui.s(24),
+          },
+        ]}
+      >
+        <Text style={[styles.title, { fontSize: ui.font(ui.compactH ? 28 : 34) }]}>{title}</Text>
+        <Text style={[styles.subtitle, { fontSize: ui.font(15), lineHeight: ui.font(22) }]}>
+          {subtitle}
+        </Text>
+        <Text
+          style={[
+            styles.time,
+            { fontSize: ui.font(22), marginTop: ui.s(16) },
+            !scoreLabel && snapCount <= 0 && { marginBottom: ui.s(20) },
+          ]}
+        >
           {formatTime(elapsedSec)}
         </Text>
-        {scoreLabel ? <Text style={styles.score}>{scoreLabel}</Text> : null}
+        {scoreLabel ? (
+          <Text style={[styles.score, { fontSize: ui.font(16), marginBottom: ui.s(18) }]}>
+            {scoreLabel}
+          </Text>
+        ) : null}
         {snapCount > 0 ? (
-          <Text style={styles.score}>
+          <Text style={[styles.score, { fontSize: ui.font(16), marginBottom: ui.s(18) }]}>
             {snapCount === 1 ? '1 Cat Cam snap' : `${snapCount} Cat Cam snaps`}
           </Text>
         ) : null}
         {snapCount > 0 && onViewSnaps ? (
           <Pressable
             onPress={onViewSnaps}
-            style={({ pressed }) => [styles.secondary, pressed && styles.pressed, styles.snapBtn]}
+            style={({ pressed }) => [
+              styles.secondary,
+              { borderRadius: ui.s(16), paddingVertical: ui.s(13), marginBottom: ui.s(4) },
+              pressed && styles.pressed,
+            ]}
             accessibilityRole="button"
           >
-            <Text style={styles.secondaryText}>See Cat Cam</Text>
+            <Text style={[styles.secondaryText, { fontSize: ui.font(16) }]}>See Cat Cam</Text>
           </Pressable>
         ) : null}
         <Pressable
           onPress={onPlayAgain}
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.primary,
+            { borderRadius: ui.s(16), paddingVertical: ui.s(14), minHeight: ui.tap },
+            pressed && styles.pressed,
+          ]}
           accessibilityRole="button"
         >
-          <Text style={styles.primaryText}>Play again</Text>
+          <Text style={[styles.primaryText, { fontSize: ui.font(17) }]}>Play again</Text>
         </Pressable>
         <Pressable
           onPress={onHome}
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.secondary,
+            { borderRadius: ui.s(16), paddingVertical: ui.s(13), marginTop: ui.s(10), minHeight: ui.tap },
+            pressed && styles.pressed,
+          ]}
           accessibilityRole="button"
         >
-          <Text style={styles.secondaryText}>Back home</Text>
+          <Text style={[styles.secondaryText, { fontSize: ui.font(16) }]}>Back home</Text>
         </Pressable>
       </View>
     </View>
@@ -89,18 +134,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 60,
-    padding: 24,
   },
   card: {
     width: '100%',
-    maxWidth: 360,
-    borderRadius: 28,
     backgroundColor: '#F7F2E8',
-    padding: 24,
   },
   title: {
     fontFamily: displayFont,
-    fontSize: 34,
     fontWeight: '700',
     color: '#1C2A24',
     textAlign: 'center',
@@ -108,57 +148,40 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: 6,
     fontFamily: bodyFont,
-    fontSize: 16,
     color: '#4A5A52',
     textAlign: 'center',
   },
   time: {
-    marginTop: 18,
     marginBottom: 8,
     fontFamily: bodyFont,
-    fontSize: 22,
     fontWeight: '700',
     color: '#1C2A24',
     textAlign: 'center',
   },
-  timeSolo: {
-    marginBottom: 22,
-  },
   score: {
-    marginBottom: 22,
     fontFamily: bodyFont,
-    fontSize: 16,
     fontWeight: '600',
     color: '#4A5A52',
     textAlign: 'center',
   },
   primary: {
     backgroundColor: '#1C2A24',
-    borderRadius: 16,
-    paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryText: {
     color: '#F7F2E8',
     fontFamily: bodyFont,
-    fontSize: 17,
     fontWeight: '700',
   },
   secondary: {
-    marginTop: 10,
-    borderRadius: 16,
-    paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(28,42,36,0.08)',
-  },
-  snapBtn: {
-    marginTop: 0,
-    marginBottom: 4,
   },
   secondaryText: {
     color: '#1C2A24',
     fontFamily: bodyFont,
-    fontSize: 16,
     fontWeight: '600',
   },
   pressed: {
