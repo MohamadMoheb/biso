@@ -1,6 +1,6 @@
 # Biso
 
-A cat playground app — creatures, laser, and feather wand modes built for feline attention.
+A cat playground app - creatures, laser, and feather wand modes built for feline attention.
 
 ## Run
 
@@ -16,7 +16,7 @@ Then open in Expo Go, or press `i` / `a` / `w`.
 | Mode | What it is |
 |------|------------|
 | **Creatures** | Theme worlds (Sea, Desert, Grass) with animated animals to tap |
-| **Laser** | Classic red-dot chase — drag or let it auto-roam |
+| **Laser** | Classic red-dot chase - drag or let it auto-roam |
 | **Feather wand** | One soft target that follows your finger with lag |
 
 ## Features
