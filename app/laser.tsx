@@ -1,5 +1,4 @@
 import * as Haptics from 'expo-haptics';
-import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -16,6 +15,7 @@ import Animated, {
 import { PlayHud } from '../src/components/PlayHud';
 import { SessionSummary } from '../src/components/SessionSummary';
 import { LaserBackground } from '../src/components/ThemeBackground';
+import { useSafeKeepAwake } from '../src/hooks/useSafeKeepAwake';
 import { useSettings } from '../src/settings/SettingsContext';
 import { DIFFICULTY_META } from '../src/settings/types';
 
@@ -24,7 +24,7 @@ const DOT = 30;
 const HIT = 78;
 
 export default function LaserScreen() {
-  useKeepAwake();
+  useSafeKeepAwake('biso-laser');
   const { width, height } = useWindowDimensions();
   const { settings, setSoundEnabled, recordSession } = useSettings();
   const difficulty = DIFFICULTY_META[settings.difficulty];
