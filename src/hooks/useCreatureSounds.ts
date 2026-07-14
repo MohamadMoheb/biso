@@ -1,9 +1,10 @@
-import { Audio, type AVPlaybackSource } from 'expo-av';
+import { setAudioModeAsync, type AudioSource } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { createSfxPool, type SfxPool } from '../audio/sfx';
 import { type EntitySoundId, getEntityProfile } from '../entityProfiles';
 
-const ENTITY_SOURCES: Record<EntitySoundId, AVPlaybackSource> = {
+const ENTITY_SOURCES: Record<EntitySoundId, AudioSource> = {
   fish: require('../../assets/sounds/entities/fish.wav'),
   jelly: require('../../assets/sounds/entities/jelly.wav'),
   shrimp: require('../../assets/sounds/entities/shrimp.wav'),
@@ -19,7 +20,8 @@ const ENTITY_SOURCES: Record<EntitySoundId, AVPlaybackSource> = {
   squirrel: require('../../assets/sounds/entities/squirrel.wav'),
 };
 
-const POP_SOURCE = require('../../assets/sounds/pop.wav');
+const POP_SOURCE: AudioSource = require('../../assets/sounds/pop.wav');
+const POP_VOLUME = 0.92;
 
 /** Peak loudness per creature — tuned so soft flutter (butterfly) still sits below crab clicks. */
 const ENTITY_VOLUME: Record<EntitySoundId, number> = {
@@ -70,115 +72,61 @@ function randRate(base = 1) {
   return base * (0.93 + Math.random() * 0.14);
 }
 
-export function useCreatureSounds(soundEnabled = true): CreatureSounds {
-  const poolsRef = useRef<Partial<Record<PoolKey, Audio.Sound[]>>>({});
-  const readyRef = useRef(false);
+/**
+ * Short-sound pools for the creatures screen. Only the sounds used by the
+ * given theme's entities (plus the catch pop) are loaded — a theme needs
+ * 4–5 entity cues, not the full 13-sound bank.
+ */
+export function useCreatureSounds(
+  soundEnabled = true,
+  entities: readonly string[] = [],
+): CreatureSounds {
+  const poolsRef = useRef<Partial<Record<PoolKey, SfxPool>>>({});
   const lastPlayRef = useRef<Partial<Record<string, number>>>({});
   const lastGlobalMoveRef = useRef(0);
   const enabledRef = useRef(soundEnabled);
   enabledRef.current = soundEnabled;
 
+  // Stable key so a re-created array with the same emojis does not reload audio.
+  const entityKey = entities.join('');
+
   useEffect(() => {
-    let mounted = true;
+    void setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
 
-    async function load() {
-      try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-        });
+    const pools: Partial<Record<PoolKey, SfxPool>> = {};
+    pools.pop = createSfxPool(POP_SOURCE, POP_VOLUME, 3);
 
-        const pools: Partial<Record<PoolKey, Audio.Sound[]>> = {};
-
-        const loadOne = async (source: AVPlaybackSource, volume: number) => {
-          const { sound } = await Audio.Sound.createAsync(source, {
-            volume,
-            shouldPlay: false,
-            isLooping: false,
-          });
-          return sound;
-        };
-
-        const [popA, popB, popC] = await Promise.all([
-          loadOne(POP_SOURCE, 0.92),
-          loadOne(POP_SOURCE, 0.92),
-          loadOne(POP_SOURCE, 0.92),
-        ]);
-        pools.pop = [popA, popB, popC];
-
-        const ids = Object.keys(ENTITY_SOURCES) as EntitySoundId[];
-        await Promise.all(
-          ids.map(async (id) => {
-            const vol = ENTITY_VOLUME[id];
-            // Bee needs an extra voice so overlapping buzzes stay smooth.
-            const count = id === 'bee' || id === 'bird' ? 4 : 3;
-            const sounds = await Promise.all(
-              Array.from({ length: count }, () => loadOne(ENTITY_SOURCES[id], vol)),
-            );
-            pools[id] = sounds;
-          }),
-        );
-
-        if (!mounted) {
-          await Promise.all(
-            Object.values(pools)
-              .flat()
-              .map((s) => s.unloadAsync()),
-          );
-          return;
-        }
-
-        poolsRef.current = pools;
-        readyRef.current = true;
-      } catch {
-        // Audio is optional
-      }
+    const ids = new Set<EntitySoundId>();
+    for (const emoji of entities) ids.add(getEntityProfile(emoji).sound);
+    for (const id of ids) {
+      // Bee/bird need an extra voice so overlapping buzzes stay smooth.
+      const voices = id === 'bee' || id === 'bird' ? 4 : 3;
+      pools[id] = createSfxPool(ENTITY_SOURCES[id], ENTITY_VOLUME[id], voices);
     }
 
-    void load();
-
+    poolsRef.current = pools;
     return () => {
-      mounted = false;
-      readyRef.current = false;
-      const pools = poolsRef.current;
       poolsRef.current = {};
-      void Promise.all(
-        Object.values(pools)
-          .flat()
-          .map((s) => s.unloadAsync()),
-      );
+      for (const pool of Object.values(pools)) pool?.dispose();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- entityKey stands in for entities
+  }, [entityKey]);
 
   const playKey = useCallback(
     (key: PoolKey, rateKey: string, minGapMs: number, opts?: { rate?: number; volumeBoost?: number }) => {
-      if (!readyRef.current || !enabledRef.current) return;
+      if (!enabledRef.current) return;
       const now = Date.now();
       const last = lastPlayRef.current[rateKey] ?? 0;
       if (now - last < minGapMs) return;
       lastPlayRef.current[rateKey] = now;
 
       const pool = poolsRef.current[key];
-      if (!pool?.length) return;
-      const sound = pool[Math.floor(Math.random() * pool.length)];
-      if (!sound) return;
-
-      const rate = opts?.rate ?? randRate(1);
-      const baseVol = key === 'pop' ? 0.92 : ENTITY_VOLUME[key as EntitySoundId] ?? 0.4;
-      const volume = Math.min(1, baseVol * (opts?.volumeBoost ?? 1));
-
-      void (async () => {
-        try {
-          await sound.stopAsync().catch(() => undefined);
-          await sound.setRateAsync(rate, true);
-          await sound.setVolumeAsync(volume);
-          await sound.setPositionAsync(0);
-          await sound.playAsync();
-        } catch {
-          void sound.replayAsync().catch(() => {
-            void sound.playFromPositionAsync(0).catch(() => undefined);
-          });
-        }
-      })();
+      if (!pool) return;
+      const baseVol = key === 'pop' ? POP_VOLUME : ENTITY_VOLUME[key];
+      pool.play({
+        rate: opts?.rate ?? randRate(1),
+        volume: baseVol * (opts?.volumeBoost ?? 1),
+      });
     },
     [],
   );
