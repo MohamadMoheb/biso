@@ -2,6 +2,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useUiScale } from '../utils/layout';
 import { formatTime } from '../utils/formatTime';
 
 type PlayHudProps = {
@@ -21,10 +22,14 @@ function HoldChip({
   icon,
   accessibilityLabel,
   onHoldComplete,
+  size,
+  iconSize,
 }: {
   icon: IconName;
   accessibilityLabel: string;
   onHoldComplete: () => void;
+  size: number;
+  iconSize: number;
 }) {
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -65,14 +70,22 @@ function HoldChip({
     <Pressable
       onPressIn={begin}
       onPressOut={cancel}
-      hitSlop={10}
-      style={styles.chip}
+      hitSlop={12}
+      style={[
+        styles.chip,
+        {
+          minWidth: size,
+          height: size,
+          borderRadius: Math.round(size * 0.32),
+          paddingHorizontal: Math.round(size * 0.22),
+        },
+      ]}
       accessibilityRole="button"
       accessibilityLabel={`${accessibilityLabel}. Hold to confirm`}
       accessibilityHint="Hold for about one second"
     >
       <View style={[styles.holdFill, { width: `${Math.round(progress * 100)}%` }]} />
-      <Ionicons name={icon} size={22} color="#FFFFFF" style={styles.chipIcon} />
+      <Ionicons name={icon} size={iconSize} color="#FFFFFF" style={styles.chipIcon} />
     </Pressable>
   );
 }
@@ -85,30 +98,65 @@ export function PlayHud({
   onTogglePause,
   onExit,
 }: PlayHudProps) {
+  const ui = useUiScale();
+  const chip = ui.tap;
+  const icon = ui.s(22);
+
   return (
-    <View style={styles.wrap} pointerEvents="box-none">
+    <View
+      style={[
+        styles.wrap,
+        {
+          paddingTop: ui.insets.top + ui.s(8),
+          paddingHorizontal: ui.padX,
+        },
+      ]}
+      pointerEvents="box-none"
+    >
       <View style={styles.topRow}>
         <HoldChip
           icon="chevron-back"
           accessibilityLabel="Exit play"
           onHoldComplete={onExit}
+          size={chip}
+          iconSize={icon}
         />
 
-        <View style={styles.metaPill}>
-          <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.meta}>{formatTime(elapsedSec)}</Text>
+        <View
+          style={[
+            styles.metaPill,
+            {
+              minHeight: Math.max(32, ui.s(32)),
+              paddingHorizontal: ui.s(10),
+              borderRadius: ui.s(12),
+              gap: ui.s(6),
+            },
+          ]}
+        >
+          <Ionicons
+            name="time-outline"
+            size={ui.s(14)}
+            color="rgba(255,255,255,0.85)"
+          />
+          <Text style={[styles.meta, { fontSize: ui.font(15), minWidth: ui.s(36) }]}>
+            {formatTime(elapsedSec)}
+          </Text>
         </View>
 
-        <View style={styles.rightCluster}>
+        <View style={[styles.rightCluster, { gap: ui.s(8) }]}>
           <HoldChip
             icon={muted ? 'volume-mute' : 'volume-high'}
             accessibilityLabel={muted ? 'Unmute' : 'Mute'}
             onHoldComplete={onToggleMute}
+            size={chip}
+            iconSize={icon}
           />
           <HoldChip
             icon={paused ? 'play' : 'pause'}
             accessibilityLabel={paused ? 'Resume' : 'Pause'}
             onHoldComplete={onTogglePause}
+            size={chip}
+            iconSize={icon}
           />
         </View>
       </View>
@@ -129,8 +177,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 60,
-    paddingTop: 48,
-    paddingHorizontal: 16,
   },
   topRow: {
     flexDirection: 'row',
@@ -139,16 +185,11 @@ const styles = StyleSheet.create({
   },
   rightCluster: {
     flexDirection: 'row',
-    gap: 8,
   },
   chip: {
-    minWidth: 44,
-    height: 44,
-    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.28)',
-    paddingHorizontal: 12,
     overflow: 'hidden',
   },
   holdFill: {
@@ -164,17 +205,11 @@ const styles = StyleSheet.create({
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    minHeight: 32,
-    paddingHorizontal: 10,
-    borderRadius: 12,
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
   meta: {
     color: 'rgba(255,255,255,0.85)',
     fontFamily: bodyFont,
-    fontSize: 15,
     fontWeight: '600',
-    minWidth: 36,
   },
 });
