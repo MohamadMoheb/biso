@@ -1,9 +1,47 @@
-import { createAudioPlayer, type AudioPlayer, type AudioSource } from 'expo-audio';
+import {
+  createAudioPlayer,
+  type AudioPlayer,
+  type AudioSource,
+  type AudioStatus,
+} from 'expo-audio';
 
 export type SfxPool = {
   play: (opts?: { volume?: number; rate?: number }) => void;
   dispose: () => void;
 };
+
+type PlayOpts = { volume?: number; rate?: number };
+
+function applyOpts(player: AudioPlayer, baseVolume: number, opts?: PlayOpts) {
+  player.volume = Math.min(1, opts?.volume ?? baseVolume);
+  player.shouldCorrectPitch = true;
+  player.playbackRate = opts?.rate ?? 1;
+}
+
+/**
+ * Restart and play without awaiting seek — awaiting added a frame+ of latency
+ * and dropped the first hit while assets were still decoding.
+ */
+function fire(player: AudioPlayer) {
+  void player.seekTo(0);
+  player.play();
+}
+
+function playWhenReady(player: AudioPlayer, baseVolume: number, opts?: PlayOpts) {
+  applyOpts(player, baseVolume, opts);
+  if (player.isLoaded) {
+    fire(player);
+    return;
+  }
+
+  // First plays can race createAudioPlayer's load — queue one shot instead of dropping.
+  const sub = player.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+    if (!status.isLoaded) return;
+    sub.remove();
+    applyOpts(player, baseVolume, opts);
+    fire(player);
+  });
+}
 
 /**
  * Small pool of pre-created players for one short sound effect so rapid
@@ -24,21 +62,14 @@ export function createSfxPool(source: AudioSource, baseVolume: number, size = 3)
 
   let disposed = false;
 
-  const play = (opts?: { volume?: number; rate?: number }) => {
+  const play = (opts?: PlayOpts) => {
     if (disposed || players.length === 0) return;
     const idle = players.find((p) => p.isLoaded && !p.playing);
-    const player = idle ?? players[Math.floor(Math.random() * players.length)]!;
-    if (!player.isLoaded) return;
+    const loading = !idle ? players.find((p) => !p.isLoaded) : undefined;
+    const player =
+      idle ?? loading ?? players[Math.floor(Math.random() * players.length)]!;
     try {
-      player.volume = Math.min(1, opts?.volume ?? baseVolume);
-      player.shouldCorrectPitch = true;
-      player.playbackRate = opts?.rate ?? 1;
-      void player
-        .seekTo(0)
-        .then(() => {
-          if (!disposed) player.play();
-        })
-        .catch(() => undefined);
+      playWhenReady(player, baseVolume, opts);
     } catch {
       // Player released mid-call — ignore.
     }
