@@ -15,6 +15,8 @@ import type { Theme, ThemeId } from '../themes';
 
 type ThemeBackgroundProps = {
   theme: Theme;
+  /** Fewer decorative animations — use during play with many creatures. */
+  lite?: boolean;
 };
 
 function DriftBubble({
@@ -154,7 +156,7 @@ function SwayBlade({
   );
 }
 
-function SeaDecor() {
+function SeaDecor({ lite }: { lite?: boolean }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
@@ -166,29 +168,37 @@ function SeaDecor() {
       <View style={[styles.rayBeam, styles.rayA]} />
       <View style={[styles.rayBeam, styles.rayB]} />
       <View style={[styles.rayBeam, styles.rayC]} />
-      <View style={[styles.rayBeam, styles.rayD]} />
+      {!lite ? <View style={[styles.rayBeam, styles.rayD]} /> : null}
 
       <View style={styles.caustic} />
-      <View style={[styles.caustic, styles.caustic2]} />
+      {!lite ? <View style={[styles.caustic, styles.caustic2]} /> : null}
 
       <DriftBubble size={14} left="12%" bottom="18%" delay={0} travel={220} duration={4200} />
-      <DriftBubble size={10} left="28%" bottom="12%" delay={600} travel={260} duration={5000} />
       <DriftBubble size={18} left="48%" bottom="8%" delay={200} travel={240} duration={4600} />
-      <DriftBubble size={8} left="66%" bottom="22%" delay={900} travel={200} duration={3800} />
       <DriftBubble size={12} left="78%" bottom="14%" delay={400} travel={280} duration={5200} />
-      <DriftBubble size={16} left="86%" bottom="30%" delay={1100} travel={180} duration={4000} />
-      <DriftBubble size={9} left="38%" bottom="28%" delay={1500} travel={210} duration={4400} />
+      {!lite ? (
+        <>
+          <DriftBubble size={10} left="28%" bottom="12%" delay={600} travel={260} duration={5000} />
+          <DriftBubble size={8} left="66%" bottom="22%" delay={900} travel={200} duration={3800} />
+          <DriftBubble size={16} left="86%" bottom="30%" delay={1100} travel={180} duration={4000} />
+          <DriftBubble size={9} left="38%" bottom="28%" delay={1500} travel={210} duration={4400} />
+        </>
+      ) : null}
 
       <View style={[styles.coral, styles.coralL]} />
       <View style={[styles.coral, styles.coralL2]} />
       <View style={[styles.coral, styles.coralR]} />
-      <View style={[styles.coral, styles.coralR2]} />
+      {!lite ? <View style={[styles.coral, styles.coralR2]} /> : null}
 
       <View style={[styles.weedLeaf, styles.weedA]} />
       <View style={[styles.weedLeaf, styles.weedB]} />
       <View style={[styles.weedLeaf, styles.weedC]} />
-      <View style={[styles.weedLeaf, styles.weedD]} />
-      <View style={[styles.weedLeaf, styles.weedE]} />
+      {!lite ? (
+        <>
+          <View style={[styles.weedLeaf, styles.weedD]} />
+          <View style={[styles.weedLeaf, styles.weedE]} />
+        </>
+      ) : null}
 
       <LinearGradient
         colors={['transparent', 'rgba(6,34,52,0.55)', 'rgba(4,24,38,0.85)']}
@@ -250,7 +260,7 @@ function DesertDecor() {
   );
 }
 
-function GrassDecor() {
+function GrassDecor({ lite }: { lite?: boolean }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
@@ -270,37 +280,45 @@ function GrassDecor() {
         <View style={[styles.cloudPuff, styles.puffC]} />
         <View style={[styles.cloudPuff, styles.puffD]} />
       </View>
-      <View style={[styles.cloud, styles.cloud3]} />
+      {!lite ? <View style={[styles.cloud, styles.cloud3]} /> : null}
 
       <View style={[styles.hill, styles.hillFar]} />
       <View style={[styles.hill, styles.hillMid]} />
       <View style={[styles.hill, styles.hillNear]} />
 
       <SwayBlade left="5%" height={52} delay={0} rotateBase={-10} color="rgba(34,100,55,0.65)" />
-      <SwayBlade left="10%" height={38} delay={200} rotateBase={6} color="rgba(48,120,62,0.55)" />
       <SwayBlade left="18%" height={46} delay={100} rotateBase={-4} color="rgba(40,110,58,0.6)" />
-      <SwayBlade left="42%" height={40} delay={300} rotateBase={8} color="rgba(36,105,55,0.55)" />
       <SwayBlade left="50%" height={54} delay={150} rotateBase={-8} color="rgba(42,115,60,0.6)" />
-      <SwayBlade left="72%" height={44} delay={250} rotateBase={10} color="rgba(34,100,55,0.58)" />
       <SwayBlade left="80%" height={36} delay={50} rotateBase={-6} color="rgba(48,120,62,0.5)" />
-      <SwayBlade left="88%" height={50} delay={350} rotateBase={4} color="rgba(40,110,58,0.62)" />
+      {!lite ? (
+        <>
+          <SwayBlade left="10%" height={38} delay={200} rotateBase={6} color="rgba(48,120,62,0.55)" />
+          <SwayBlade left="42%" height={40} delay={300} rotateBase={8} color="rgba(36,105,55,0.55)" />
+          <SwayBlade left="72%" height={44} delay={250} rotateBase={10} color="rgba(34,100,55,0.58)" />
+          <SwayBlade left="88%" height={50} delay={350} rotateBase={4} color="rgba(40,110,58,0.62)" />
+        </>
+      ) : null}
 
       <View style={[styles.bloom, styles.bloom1]} />
       <View style={[styles.bloom, styles.bloom2]} />
       <View style={[styles.bloom, styles.bloom3]} />
-      <View style={[styles.bloom, styles.bloom4]} />
-      <View style={[styles.bloom, styles.bloom5]} />
+      {!lite ? (
+        <>
+          <View style={[styles.bloom, styles.bloom4]} />
+          <View style={[styles.bloom, styles.bloom5]} />
+        </>
+      ) : null}
     </View>
   );
 }
 
-function Decor({ id }: { id: ThemeId }) {
-  if (id === 'sea') return <SeaDecor />;
+function Decor({ id, lite }: { id: ThemeId; lite?: boolean }) {
+  if (id === 'sea') return <SeaDecor lite={lite} />;
   if (id === 'desert') return <DesertDecor />;
-  return <GrassDecor />;
+  return <GrassDecor lite={lite} />;
 }
 
-export function ThemeBackground({ theme }: ThemeBackgroundProps) {
+export function ThemeBackground({ theme, lite }: ThemeBackgroundProps) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
@@ -309,12 +327,12 @@ export function ThemeBackground({ theme }: ThemeBackgroundProps) {
         end={{ x: 0.8, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <Decor id={theme.id} />
+      <Decor id={theme.id} lite={lite} />
     </View>
   );
 }
 
-export function LaserBackground() {
+export function LaserBackground({ lite }: { lite?: boolean } = {}) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
@@ -332,16 +350,20 @@ export function LaserBackground() {
       <View style={styles.laserVignette} />
       <View style={[styles.laserRing, styles.laserRing1]} />
       <View style={[styles.laserRing, styles.laserRing2]} />
-      <View style={[styles.laserRing, styles.laserRing3]} />
+      {!lite ? <View style={[styles.laserRing, styles.laserRing3]} /> : null}
 
       <Twinkle left="14%" top="18%" delay={0} size={2} />
-      <Twinkle left="32%" top="28%" delay={300} size={2} />
       <Twinkle left="58%" top="16%" delay={600} size={3} />
       <Twinkle left="76%" top="34%" delay={200} size={2} />
-      <Twinkle left="88%" top="22%" delay={900} size={2} />
-      <Twinkle left="22%" top="62%" delay={450} size={2} />
-      <Twinkle left="48%" top="70%" delay={700} size={2} />
-      <Twinkle left="68%" top="58%" delay={150} size={3} />
+      {!lite ? (
+        <>
+          <Twinkle left="32%" top="28%" delay={300} size={2} />
+          <Twinkle left="88%" top="22%" delay={900} size={2} />
+          <Twinkle left="22%" top="62%" delay={450} size={2} />
+          <Twinkle left="48%" top="70%" delay={700} size={2} />
+          <Twinkle left="68%" top="58%" delay={150} size={3} />
+        </>
+      ) : null}
 
       <View style={styles.laserFloor} />
       <View style={styles.laserFloorGlow} />
