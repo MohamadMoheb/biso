@@ -543,6 +543,7 @@ export default function Index() {
   const utilitySize = ui.tap;
   const utilityIcon = ui.narrow ? 17 : ui.s(19);
   const consoleWidth = Math.min(width - ui.padX * 2, 640);
+  const modePanelHeight = ui.compactH ? ui.s(56) : ui.s(64);
   const activeTheme = THEMES[themeId];
   const playGradient: [string, string] =
     mode === 'laser' ? ['#FF5A63', '#FF243B'] : [GOLD, '#FFB83E'];
@@ -690,12 +691,17 @@ export default function Index() {
               />
             </View>
 
-            {mode === 'creatures' ? (
-              <View style={styles.worldSection}>
-                <View style={styles.worldHeader}>
-                  <Text style={styles.worldTitle}>Choose the arena</Text>
-                  <Text style={styles.worldHint}>{activeTheme.subtitle}</Text>
-                </View>
+            <View style={[styles.modePanel, { height: modePanelHeight }]}>
+              <View
+                pointerEvents={mode === 'creatures' ? 'auto' : 'none'}
+                accessibilityElementsHidden={mode !== 'creatures'}
+                importantForAccessibility={mode === 'creatures' ? 'auto' : 'no-hide-descendants'}
+                style={[
+                  StyleSheet.absoluteFill,
+                  styles.modePanelLayer,
+                  { opacity: mode === 'creatures' ? 1 : 0 },
+                ]}
+              >
                 <View style={[styles.worldRow, { gap: ui.s(7) }]}>
                   {THEME_LIST.map((theme) => (
                     <WorldButton
@@ -711,19 +717,29 @@ export default function Index() {
                   ))}
                 </View>
               </View>
-            ) : (
-              <View style={styles.laserInstruction}>
-                <View style={styles.laserInstructionIcon}>
-                  <Ionicons name="move" size={20} color={PAPER} />
-                </View>
-                <View style={styles.laserInstructionCopy}>
-                  <Text style={styles.laserInstructionTitle}>Fast paws ready?</Text>
-                  <Text style={styles.laserInstructionText}>
-                    Drag to steer. Tap the red dot to score.
-                  </Text>
+              <View
+                pointerEvents={mode === 'laser' ? 'auto' : 'none'}
+                accessibilityElementsHidden={mode !== 'laser'}
+                importantForAccessibility={mode === 'laser' ? 'auto' : 'no-hide-descendants'}
+                style={[
+                  StyleSheet.absoluteFill,
+                  styles.modePanelLayer,
+                  { opacity: mode === 'laser' ? 1 : 0 },
+                ]}
+              >
+                <View style={styles.laserInstruction}>
+                  <View style={styles.laserInstructionIcon}>
+                    <Ionicons name="move" size={20} color={PAPER} />
+                  </View>
+                  <View style={styles.laserInstructionCopy}>
+                    <Text style={styles.laserInstructionTitle}>Fast paws ready?</Text>
+                    <Text style={styles.laserInstructionText}>
+                      Drag to steer. Tap the red dot to score.
+                    </Text>
+                  </View>
                 </View>
               </View>
-            )}
+            </View>
 
             <Pressable
               onPress={start}
@@ -1066,36 +1082,20 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#39404D',
   },
-  worldSection: {
-    gap: 8,
+  modePanel: {
+    position: 'relative',
   },
-  worldHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  worldTitle: {
-    fontFamily: bodyFont,
-    fontSize: 13,
-    fontWeight: '800',
-    color: PAPER,
-  },
-  worldHint: {
-    flexShrink: 1,
-    fontFamily: bodyFont,
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,248,233,0.66)',
-    textAlign: 'right',
+  modePanelLayer: {
+    justifyContent: 'center',
   },
   worldRow: {
+    flex: 1,
     flexDirection: 'row',
+    alignItems: 'stretch',
   },
   worldPressable: {
     position: 'relative',
     flex: 1,
-    minHeight: 52,
     paddingHorizontal: 7,
     paddingVertical: 6,
     borderRadius: 14,
@@ -1131,7 +1131,7 @@ const styles = StyleSheet.create({
     top: 3,
   },
   laserInstruction: {
-    minHeight: 62,
+    flex: 1,
     padding: 10,
     borderRadius: 15,
     borderWidth: 1,
