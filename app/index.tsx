@@ -1,8 +1,8 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { useEffect, useState, type ComponentProps } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState, type ComponentProps } from 'react';
 import {
   Modal,
   Platform,
@@ -71,6 +71,11 @@ function BrandMark({ size }: { size: number }) {
       -1,
       false,
     );
+    return () => {
+      cancelAnimation(pulse);
+      cancelAnimation(under);
+      cancelAnimation(lift);
+    };
   }, [lift, pulse, under]);
 
   const dotStyle = useAnimatedStyle(() => ({
@@ -380,7 +385,17 @@ export default function Index() {
   const [themeId, setThemeId] = useState<ThemeId>(THEME_LIST[0]!.id);
   const [tipOpen, setTipOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [focused, setFocused] = useState(true);
   const playScale = useSharedValue(1);
+
+  // Unmount the animated stage while a play screen is on top — its infinite
+  // Reanimated loops would otherwise keep burning UI-thread frames all session.
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
 
   useEffect(() => {
     if (ready && !settings.tipSeen) setTipOpen(true);
@@ -412,6 +427,11 @@ export default function Index() {
   const toggleSize = ui.narrow ? Math.max(40, ui.s(38)) : ui.tap;
   const toggleIcon = ui.narrow ? 18 : ui.s(20);
   const orb = ui.narrow ? 52 : ui.s(58);
+
+  if (!focused) {
+    // Blur fires after the push transition completes, so this swap is invisible.
+    return <View style={styles.root} />;
+  }
 
   return (
     <View style={styles.root}>
@@ -629,7 +649,16 @@ export default function Index() {
         </Animated.View>
       </SafeAreaView>
 
-      <Modal visible={tipOpen} transparent animationType="fade">
+      <Modal
+        visible={tipOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {
+          markTipSeen();
+          setTipOpen(false);
+        }}
+      >
         <View
           style={[
             styles.tipScrim,
