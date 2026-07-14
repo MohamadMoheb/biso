@@ -146,12 +146,14 @@ export default function PlayScreen() {
         ))}
       </View>
 
-      <CatCam
-        enabled={settings.catCamEnabled && !sessionOver}
-        paused={paused || sessionOver}
-        mode="creatures"
-        onSnap={() => setSnapCount((c) => c + 1)}
-      />
+      {settings.catCamEnabled ? (
+        <CatCam
+          enabled={!sessionOver}
+          paused={paused || sessionOver}
+          mode="creatures"
+          onSnap={() => setSnapCount((c) => c + 1)}
+        />
+      ) : null}
 
       <PlayHud
         elapsedSec={elapsedSec}
