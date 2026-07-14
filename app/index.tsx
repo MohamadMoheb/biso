@@ -121,7 +121,7 @@ export default function Index() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
       <LinearGradient
-        colors={['#F4F0E8', '#E7EEEA', '#DDE6F0']}
+        colors={['#0B1210', '#111A17', '#0E1620']}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -250,7 +250,8 @@ export default function Index() {
                   <Switch
                     value={settings.soundEnabled}
                     onValueChange={setSoundEnabled}
-                    trackColor={{ true: '#1C2A24', false: '#C9D0CB' }}
+                    trackColor={{ true: '#C8E6C9', false: '#2A3531' }}
+                    thumbColor="#F4F0E8"
                   />
                 </View>
                 <View style={styles.toggleLine} />
@@ -259,7 +260,8 @@ export default function Index() {
                   <Switch
                     value={settings.hapticsEnabled}
                     onValueChange={setHapticsEnabled}
-                    trackColor={{ true: '#1C2A24', false: '#C9D0CB' }}
+                    trackColor={{ true: '#C8E6C9', false: '#2A3531' }}
+                    thumbColor="#F4F0E8"
                   />
                 </View>
               </View>
@@ -318,7 +320,7 @@ const bodyFont = Platform.select({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F4F0E8',
+    backgroundColor: '#0B1210',
   },
   shell: {
     flex: 1,
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
     fontFamily: displayFont,
     fontSize: 48,
     lineHeight: 54,
-    color: '#1C2A24',
+    color: '#F0EBE3',
     letterSpacing: -1.2,
     fontWeight: '700',
     marginBottom: 18,
@@ -348,7 +350,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
-    color: '#5A6B62',
+    color: '#7A8A82',
   },
   modeList: {
     gap: 8,
@@ -362,10 +364,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 18,
-    backgroundColor: 'rgba(28,42,36,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   modeRowOn: {
-    backgroundColor: '#1C2A24',
+    backgroundColor: 'rgba(200,230,201,0.16)',
+    borderColor: 'rgba(200,230,201,0.45)',
   },
   modeEmoji: {
     fontSize: 30,
@@ -379,37 +384,37 @@ const styles = StyleSheet.create({
     fontFamily: bodyFont,
     fontSize: 18,
     fontWeight: '700',
-    color: '#1C2A24',
+    color: '#E8E2D8',
   },
   modeTitleOn: {
-    color: '#F7F2E8',
+    color: '#F4F0E8',
   },
   modeSub: {
     marginTop: 2,
     fontFamily: bodyFont,
     fontSize: 13,
-    color: '#5A6B62',
+    color: '#8A9690',
   },
   modeSubOn: {
-    color: 'rgba(247,242,232,0.72)',
+    color: 'rgba(244,240,232,0.7)',
   },
   radio: {
     width: 18,
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: 'rgba(28,42,36,0.25)',
+    borderColor: 'rgba(255,255,255,0.28)',
   },
   radioOn: {
-    borderColor: '#F7F2E8',
-    backgroundColor: '#F7F2E8',
+    borderColor: '#C8E6C9',
+    backgroundColor: '#C8E6C9',
   },
   readyNote: {
     marginBottom: 14,
     fontFamily: bodyFont,
     fontSize: 15,
     lineHeight: 22,
-    color: '#4A5A52',
+    color: '#9AA59E',
   },
   worldRow: {
     flexDirection: 'row',
@@ -452,23 +457,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(28,42,36,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   pillFlex: {
     flex: 1,
   },
   pillOn: {
-    backgroundColor: '#1C2A24',
+    backgroundColor: '#C8E6C9',
   },
   pillText: {
     fontFamily: bodyFont,
     fontSize: 14,
-    fontWeight: '650',
     fontWeight: '600',
-    color: '#1C2A24',
+    color: '#D8D2C8',
   },
   pillTextOn: {
-    color: '#F7F2E8',
+    color: '#0B1210',
   },
   moreToggle: {
     marginTop: 12,
@@ -478,37 +482,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(28,42,36,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   moreToggleText: {
     fontFamily: bodyFont,
     fontSize: 15,
     fontWeight: '600',
-    color: '#1C2A24',
+    color: '#E8E2D8',
   },
   moreChevron: {
     fontSize: 16,
-    color: '#5A6B62',
+    color: '#7A8A82',
   },
   morePanel: {
     marginTop: 10,
     padding: 14,
     borderRadius: 16,
-    backgroundColor: 'rgba(28,42,36,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     gap: 8,
   },
   moreLabel: {
     fontFamily: bodyFont,
     fontSize: 13,
     fontWeight: '700',
-    color: '#5A6B62',
+    color: '#7A8A82',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
   toggleList: {
     marginTop: 6,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.28)',
     paddingHorizontal: 12,
   },
   toggleRow: {
@@ -519,26 +523,26 @@ const styles = StyleSheet.create({
   },
   toggleLine: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(28,42,36,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   toggleLabel: {
     fontFamily: bodyFont,
     fontSize: 16,
     fontWeight: '600',
-    color: '#1C2A24',
+    color: '#E8E2D8',
   },
   footer: {
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(28,42,36,0.1)',
-    backgroundColor: 'rgba(244,240,232,0.92)',
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(11,18,16,0.92)',
   },
   startBtn: {
     minHeight: 54,
     borderRadius: 16,
-    backgroundColor: '#1C2A24',
+    backgroundColor: '#C8E6C9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -546,14 +550,14 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   startText: {
-    color: '#F7F2E8',
+    color: '#0B1210',
     fontFamily: bodyFont,
     fontSize: 18,
     fontWeight: '700',
   },
   tipScrim: {
     flex: 1,
-    backgroundColor: 'rgba(12,18,16,0.5)',
+    backgroundColor: 'rgba(4,8,7,0.72)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -562,14 +566,16 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     borderRadius: 24,
-    backgroundColor: '#F7F2E8',
+    backgroundColor: '#16201C',
     padding: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   tipTitle: {
     fontFamily: displayFont,
     fontSize: 28,
     fontWeight: '700',
-    color: '#1C2A24',
+    color: '#F0EBE3',
     textAlign: 'center',
   },
   tipBody: {
@@ -577,18 +583,18 @@ const styles = StyleSheet.create({
     fontFamily: bodyFont,
     fontSize: 16,
     lineHeight: 24,
-    color: '#4A5A52',
+    color: '#9AA59E',
     textAlign: 'center',
   },
   tipBtn: {
     marginTop: 18,
-    backgroundColor: '#1C2A24',
+    backgroundColor: '#C8E6C9',
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',
   },
   tipBtnText: {
-    color: '#F7F2E8',
+    color: '#0B1210',
     fontFamily: bodyFont,
     fontSize: 16,
     fontWeight: '700',
