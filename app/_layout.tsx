@@ -15,7 +15,12 @@ export default function RootLayout() {
           animation: 'fade',
           orientation: 'portrait',
         }}
-      />
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen name="play/[theme]" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="laser" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="settings" />
+      </Stack>
     </SettingsProvider>
   );
 }
