@@ -14,6 +14,7 @@ export default function RootLayout() {
           headerShown: false,
           animation: 'fade',
           orientation: 'portrait',
+          contentStyle: { backgroundColor: '#06080A' },
         }}
       >
         <Stack.Screen name="index" />
