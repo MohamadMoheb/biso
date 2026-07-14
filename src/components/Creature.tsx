@@ -73,7 +73,12 @@ export function Creature({ creature, onCatch, onExit }: CreatureProps) {
         accessibilityRole="button"
         accessibilityLabel={`Catch ${creature.emoji}`}
       >
-        <Text style={[styles.emoji, { fontSize: creature.size * 0.85 }]}>{creature.emoji}</Text>
+        <Text
+          selectable={false}
+          style={[styles.emoji, { fontSize: creature.size * 0.85 }]}
+        >
+          {creature.emoji}
+        </Text>
       </Pressable>
     </Animated.View>
   );
@@ -91,9 +96,13 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    // @ts-expect-error web-only: hide browser focus outline
+    outlineStyle: 'none',
   },
   emoji: {
     textAlign: 'center',
     includeFontPadding: false,
+    // @ts-expect-error web-only: prevent blue text selection highlight
+    userSelect: 'none',
   },
 });
