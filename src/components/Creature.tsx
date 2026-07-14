@@ -32,9 +32,17 @@ function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
+/** World facing: 1 = looking/moving right, -1 = left. */
 function facingToward(fromX: number, toX: number): 1 | -1 {
   return toX >= fromX ? 1 : -1;
 }
+
+/**
+ * Most animal emoji glyphs face left in their artwork.
+ * Display uses scaleX = DISPLAY_FACE * facing so they look the way they travel.
+ */
+const DISPLAY_FACE = -1;
+const FACE_FLIP_MIN_DX = 10;
 
 function offscreenSpot(
   edge: SpawnEdge,
@@ -149,6 +157,17 @@ export function Creature({
       phase.value = withTiming(next, { duration, easing: Easing.linear });
     };
 
+    const faceTowardX = async (nx: number, opts?: { turnPause?: boolean }) => {
+      const dx = nx - posRef.current.x;
+      if (Math.abs(dx) < FACE_FLIP_MIN_DX) return;
+      const next = facingToward(posRef.current.x, nx);
+      if (next === facing.value) return;
+      facing.value = next;
+      if (opts?.turnPause !== false) {
+        await wait(Math.round(rand(90, 180)));
+      }
+    };
+
     const idleMotion = () => {
       if (!profile.idleDrift) {
         cancelAnimation(phase);
@@ -158,20 +177,11 @@ export function Creature({
       setPhase(phaseRef.current + 1.25, Math.round(1300 / profile.speed));
     };
 
-    const moveTo = (
-      nx: number,
-      ny: number,
-      duration: number,
-      easing: (v: number) => number,
-      opts?: { flipFacing?: boolean },
-    ) =>
+    const moveTo = (nx: number, ny: number, duration: number, easing: (v: number) => number) =>
       new Promise<void>((resolve) => {
         if (!aliveRef.current || caught.value) {
           resolve();
           return;
-        }
-        if (opts?.flipFacing !== false && gait !== 'crab') {
-          facing.value = facingToward(posRef.current.x, nx);
         }
         posRef.current = { x: nx, y: ny };
         let settled = false;
@@ -190,8 +200,19 @@ export function Creature({
       nx: number,
       ny: number,
       pace: number,
-      opts?: { flipFacing?: boolean; soundGap?: [number, number] },
+      opts?: { soundGap?: [number, number]; turnPause?: boolean },
     ) => {
+      if (!aliveRef.current || caught.value) return;
+
+      // Turn to face the destination before moving — never moonwalk.
+      if (gait === 'crab') {
+        const dx = nx - posRef.current.x;
+        if (Math.abs(dx) >= FACE_FLIP_MIN_DX) {
+          facing.value = facingToward(posRef.current.x, nx);
+        }
+      } else {
+        await faceTowardX(nx, { turnPause: opts?.turnPause });
+      }
       if (!aliveRef.current || caught.value) return;
 
       const dist = Math.hypot(nx - posRef.current.x, ny - posRef.current.y);
@@ -215,17 +236,18 @@ export function Creature({
           : Easing.inOut(Easing.sin);
 
       setPhase(phaseRef.current + steps, duration);
-      await moveTo(nx, ny, duration, pathEase, opts);
+      await moveTo(nx, ny, duration, pathEase);
       idleMotion();
     };
 
-    const fieldPoint = () => {
+    const fieldPoint = (preferForward = true) => {
       const insetX = screenWidth * 0.14;
       const insetY = screenHeight * 0.14;
       const loX = Math.max(minX, insetX);
       const hiX = Math.min(maxX, screenWidth - insetX - creature.size);
       const loY = Math.max(minY, insetY);
       const hiY = Math.min(maxY, screenHeight - insetY - creature.size);
+      const dir = facing.value >= 0 ? 1 : -1;
 
       if (gait === 'crab') {
         return {
@@ -233,20 +255,24 @@ export function Creature({
           y: clamp(posRef.current.y + rand(-creature.size * 0.2, creature.size * 0.2), loY, hiY),
         };
       }
-      if (isSwimmer(gait)) {
+
+      // Bias destinations ahead of current facing so most motion is forward.
+      if (preferForward && (isSwimmer(gait) || isWalker(gait) || isFlyer(gait) || gait === 'bunny')) {
+        const goForward = Math.random() < 0.8;
+        const sign = goForward ? dir : -dir;
+        const reach = creature.size * rand(1.4, 3.2);
+        const dx = sign * reach * rand(0.55, 1);
+        const dyRange = isSwimmer(gait)
+          ? creature.size * 0.85
+          : isFlyer(gait)
+            ? creature.size * 1.6
+            : creature.size * 1.1;
         return {
-          x: rand(loX, hiX),
-          y: clamp(posRef.current.y + rand(-creature.size * 0.85, creature.size * 0.85), loY, hiY),
+          x: clamp(posRef.current.x + dx, loX, hiX),
+          y: clamp(posRef.current.y + rand(-dyRange, dyRange), loY, hiY),
         };
       }
-      if (isWalker(gait)) {
-        const heading = rand(0, Math.PI * 2);
-        const reach = creature.size * rand(1.5, 2.8);
-        return {
-          x: clamp(posRef.current.x + Math.cos(heading) * reach, loX, hiX),
-          y: clamp(posRef.current.y + Math.sin(heading) * reach * 0.8, loY, hiY),
-        };
-      }
+
       return { x: rand(loX, hiX), y: rand(loY, hiY) };
     };
 
@@ -262,29 +288,26 @@ export function Creature({
     };
 
     const doCruise = async () => {
-      const target = fieldPoint();
+      const target = fieldPoint(true);
       const pace = isWalker(gait)
         ? rand(0.8, 1.05)
         : isSwimmer(gait)
           ? rand(0.9, 1.15)
           : rand(0.85, 1.15);
 
-      if (gait === 'crab') {
-        facing.value = target.x >= posRef.current.x ? 1 : -1;
-        await travelTo(target.x, target.y, pace, { flipFacing: false, soundGap: [200, 340] });
-        return;
-      }
-
       if (gait === 'bunny') {
         soundsRef.current.playBurst(emoji);
+        await faceTowardX(target.x);
+        if (!aliveRef.current || caught.value) return;
         const apexX = (posRef.current.x + target.x) / 2;
         const apexY = Math.min(posRef.current.y, target.y) - creature.size * rand(0.35, 0.55);
         const upDist = Math.hypot(apexX - posRef.current.x, apexY - posRef.current.y);
         const upDur = Math.round(clamp((upDist / (profile.cruiseSpeed * 1.15)) * 1000, 240, 500));
         setPhase(phaseRef.current + 0.5, upDur);
+        // Hop apex without flipping facing mid-jump.
         await moveTo(apexX, apexY, upDur, Easing.out(Easing.quad));
         if (!aliveRef.current || caught.value) return;
-        await travelTo(target.x, target.y, 1.1, { soundGap: [180, 280] });
+        await travelTo(target.x, target.y, 1.1, { soundGap: [180, 280], turnPause: false });
         return;
       }
 
@@ -292,7 +315,7 @@ export function Creature({
         const strokes = Math.round(rand(3, 5));
         for (let i = 0; i < strokes; i++) {
           if (!aliveRef.current || caught.value) return;
-          const p = fieldPoint();
+          const p = fieldPoint(true);
           await travelTo(
             clamp(posRef.current.x + (p.x - posRef.current.x) * 0.4, minX, maxX),
             clamp(posRef.current.y + (p.y - posRef.current.y) * 0.4, minY, maxY),
@@ -309,14 +332,8 @@ export function Creature({
 
     const doBurst = async () => {
       soundsRef.current.playBurst(emoji);
-      const target = fieldPoint();
-      const pace = rand(1.35, 1.75);
-      if (gait === 'crab') {
-        facing.value = target.x >= posRef.current.x ? 1 : -1;
-        await travelTo(target.x, target.y, pace, { flipFacing: false, soundGap: [140, 240] });
-        return;
-      }
-      await travelTo(target.x, target.y, pace, { soundGap: [150, 260] });
+      const target = fieldPoint(true);
+      await travelTo(target.x, target.y, rand(1.35, 1.75), { soundGap: [140, 240] });
     };
 
     const enterPlayfield = async () => {
@@ -326,20 +343,26 @@ export function Creature({
         x: rand(Math.max(minX, insetX), Math.min(maxX, screenWidth - insetX - creature.size)),
         y: rand(Math.max(minY, insetY), Math.min(maxY, screenHeight - insetY - creature.size)),
       };
+
+      await faceTowardX(target.x, { turnPause: false });
+
       if (gait === 'crab') {
-        facing.value = target.x >= posRef.current.x ? 1 : -1;
-        await travelTo(target.x, clamp(start.y, minY, maxY), 0.95, { flipFacing: false });
+        facing.value = facingToward(posRef.current.x, target.x);
+        await travelTo(target.x, clamp(start.y, minY, maxY), 0.95, { turnPause: false });
       } else if (isSwimmer(gait)) {
-        await travelTo(target.x, clamp(posRef.current.y, minY, maxY), 1);
-        if (aliveRef.current && !caught.value) await travelTo(target.x, target.y, 0.9);
+        // Horizontal first (already facing that way), then depth.
+        await travelTo(target.x, clamp(posRef.current.y, minY, maxY), 1, { turnPause: false });
+        if (aliveRef.current && !caught.value) {
+          await travelTo(target.x, target.y, 0.9, { turnPause: false });
+        }
       } else {
-        await travelTo(target.x, target.y, 0.95);
+        await travelTo(target.x, target.y, 0.95, { turnPause: false });
       }
     };
 
     const leavePlayfield = async () => {
       const exit = offscreenSpot(creature.edge, creature.size, creature.nestX, creature.nestY);
-      await travelTo(exit.x, exit.y, 0.95, { flipFacing: gait !== 'crab' });
+      await travelTo(exit.x, exit.y, 0.95);
     };
 
     const runLife = async () => {
@@ -397,16 +420,15 @@ export function Creature({
     let squashY = 1;
 
     if (isFlyer(gait)) {
-      // Wing flap read: rapid horizontal squash + soft loft.
       const flap = 0.72 + (Math.sin(cycle) * 0.5 + 0.5) * 0.28;
       squashX = flap;
       squashY = 1 + (1 - flap) * 0.12;
       bobY = Math.sin(cycle * 0.5) * 5;
-      sway = Math.sin(cycle * 0.35) * 8;
+      sway = Math.sin(cycle * 0.35) * 6;
     } else if (gait === 'fish') {
-      // Swim: side-to-side body wave, soft vertical drift.
-      sway = Math.sin(cycle) * 10;
-      bobY = Math.sin(cycle * 0.5) * 4;
+      // Soft body wave — keep tilt small so it never reads as swimming reverse.
+      sway = Math.sin(cycle) * 5;
+      bobY = Math.sin(cycle * 0.5) * 3;
       squashX = 1 + Math.sin(cycle) * 0.04;
     } else if (gait === 'jelly') {
       const pulse = (Math.sin(cycle) + 1) / 2;
@@ -414,7 +436,7 @@ export function Creature({
       squashY = 1.12 - pulse * 0.22;
       bobY = Math.sin(cycle) * 6;
     } else if (gait === 'shrimp') {
-      sway = Math.sin(cycle) * 12;
+      sway = Math.sin(cycle) * 6;
       squashX = 1 + Math.sin(cycle) * 0.06;
     } else if (gait === 'bunny') {
       const hop = Math.max(0, Math.sin(cycle));
@@ -422,20 +444,19 @@ export function Creature({
       squashX = 1 + hop * 0.08;
       squashY = 1 - hop * 0.1;
     } else if (isWalker(gait)) {
-      // Walk: alternating step bob + slight roll (reads as leg cadence on an emoji).
       bobY = Math.abs(Math.sin(cycle)) * (gait === 'lizard' ? 7 : 5);
-      sway = Math.sin(cycle) * (gait === 'lizard' ? 9 : 6);
+      sway = Math.sin(cycle) * (gait === 'lizard' ? 6 : 4);
       squashY = 1 - Math.abs(Math.sin(cycle)) * 0.04;
     } else {
       bobY = Math.sin(cycle) * 3;
-      sway = Math.sin(cycle) * 4;
+      sway = Math.sin(cycle) * 3;
     }
 
     return {
       transform: [
         { translateX: x.value },
         { translateY: y.value + bobY },
-        { scaleX: facing.value * scale.value * squashX },
+        { scaleX: DISPLAY_FACE * facing.value * scale.value * squashX },
         { scaleY: scale.value * squashY },
         { rotate: `${sway}deg` },
       ],
