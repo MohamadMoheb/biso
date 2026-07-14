@@ -4,6 +4,7 @@ import {
   Image,
   type LayoutChangeEvent,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, {
@@ -18,24 +19,49 @@ import Animated, {
 
 import type { Theme, ThemeId } from '../themes';
 
-/** Original seamless tiles — tiled across any viewport (never stretched). */
+/** Wrap-safe motif tiles — tiled across any viewport (never stretched unevenly). */
 const THEME_TILES: Record<ThemeId, number> = {
   sea: require('../../assets/backgrounds/sea-tile.png'),
   desert: require('../../assets/backgrounds/desert-tile.png'),
   grass: require('../../assets/backgrounds/grass-tile.png'),
 };
 
+const LASER_FLOOR_TILE = require('../../assets/backgrounds/laser-floor-tile.png');
+
 /** Native tile pixels (all worlds share the same canvas size). */
-const TILE_PX_W = 400;
-const TILE_PX_H = 352;
-/** On-screen tile size — same aspect as the PNG so nothing warps. */
-const TILE_W = 260;
-const TILE_H = Math.round((TILE_W * TILE_PX_H) / TILE_PX_W);
-/** Overlap hides sub-pixel hairlines between adjacent Images. */
-const TILE_OVERLAP = 1;
+const TILE_PX_W = 512;
+const TILE_PX_H = 448;
+const LASER_TILE_PX_W = 512;
+const LASER_TILE_PX_H = 448;
 
 type ThemeBackgroundProps = {
   theme: Theme;
+};
+
+/** Atmosphere over each world — depth via value + cool/warm falloff (ch09). */
+const ATMOS: Record<
+  ThemeId,
+  {
+    sky: [string, string, string];
+    wash: [string, string, string];
+    vignette: string;
+  }
+> = {
+  sea: {
+    sky: ['#7EC4D8', '#4A9BB8', '#2A6F8E'],
+    wash: ['rgba(190,236,248,0.28)', 'transparent', 'rgba(12,48,72,0.38)'],
+    vignette: 'rgba(8,30,48,0.34)',
+  },
+  desert: {
+    sky: ['#F0D9A8', '#E2BC7A', '#C9964E'],
+    wash: ['rgba(255,236,200,0.32)', 'transparent', 'rgba(110,70,30,0.28)'],
+    vignette: 'rgba(70,42,18,0.28)',
+  },
+  grass: {
+    sky: ['#B7D087', '#7FAA58', '#4F7A38'],
+    wash: ['rgba(220,240,180,0.26)', 'transparent', 'rgba(30,52,18,0.32)'],
+    vignette: 'rgba(20,40,12,0.3)',
+  },
 };
 
 function Twinkle({
@@ -77,9 +103,14 @@ function Twinkle({
   );
 }
 
-function PatternFill({ themeId, fill }: { themeId: ThemeId; fill: string }) {
+function PatternFill({ themeId }: { themeId: ThemeId }) {
+  const { width: winW } = useWindowDimensions();
   const [size, setSize] = useState({ w: 0, h: 0 });
   const source = THEME_TILES[themeId];
+
+  // Larger tiles = fewer repeats in view → pattern reads as texture, not wallpaper.
+  const tileW = Math.max(380, Math.min(560, Math.round(winW * 0.72)));
+  const tileH = Math.round((tileW * TILE_PX_H) / TILE_PX_W);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -88,8 +119,8 @@ function PatternFill({ themeId, fill }: { themeId: ThemeId; fill: string }) {
     }
   }, []);
 
-  const cols = Math.max(1, Math.ceil(size.w / TILE_W) + 1);
-  const rows = Math.max(1, Math.ceil(size.h / TILE_H) + 1);
+  const cols = Math.max(1, Math.ceil(size.w / tileW) + 1);
+  const rows = Math.max(1, Math.ceil(size.h / tileH) + 1);
   const tiles = useMemo(() => {
     if (size.w <= 0 || size.h <= 0) return [] as { key: string; left: number; top: number }[];
     const list: { key: string; left: number; top: number }[] = [];
@@ -97,13 +128,13 @@ function PatternFill({ themeId, fill }: { themeId: ThemeId; fill: string }) {
       for (let c = 0; c < cols; c++) {
         list.push({
           key: `${r}-${c}`,
-          left: c * TILE_W - (c > 0 ? TILE_OVERLAP : 0),
-          top: r * TILE_H - (r > 0 ? TILE_OVERLAP : 0),
+          left: Math.round(c * tileW),
+          top: Math.round(r * tileH),
         });
       }
     }
     return list;
-  }, [cols, rows, size.w, size.h]);
+  }, [cols, rows, size.w, size.h, tileW, tileH]);
 
   return (
     <View
@@ -111,7 +142,6 @@ function PatternFill({ themeId, fill }: { themeId: ThemeId; fill: string }) {
       pointerEvents="none"
       onLayout={onLayout}
     >
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
       {tiles.map((t) => (
         <Image
           key={t.key}
@@ -120,8 +150,9 @@ function PatternFill({ themeId, fill }: { themeId: ThemeId; fill: string }) {
             position: 'absolute',
             left: t.left,
             top: t.top,
-            width: TILE_W + TILE_OVERLAP,
-            height: TILE_H + TILE_OVERLAP,
+            width: tileW,
+            height: tileH,
+            opacity: 0.72,
           }}
           resizeMode="stretch"
           accessibilityIgnoresInvertColors
@@ -132,44 +163,126 @@ function PatternFill({ themeId, fill }: { themeId: ThemeId; fill: string }) {
 }
 
 export function ThemeBackground({ theme }: ThemeBackgroundProps) {
-  return <PatternFill themeId={theme.id} fill={theme.gradient[1]} />;
-}
+  const atmos = ATMOS[theme.id];
 
-export function LaserBackground({ lite }: { lite?: boolean } = {}) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
-        colors={['#04060A', '#0C1018', '#081018', '#05070C']}
-        locations={[0, 0.35, 0.7, 1]}
+        colors={atmos.sky}
+        locations={[0, 0.45, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <PatternFill themeId={theme.id} />
+      <LinearGradient
+        colors={atmos.wash}
+        locations={[0, 0.42, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Soft edge vignette — frames playfield without muddying the center */}
+      <LinearGradient
+        colors={[atmos.vignette, 'transparent', 'transparent', atmos.vignette]}
+        locations={[0, 0.18, 0.78, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={['rgba(255,40,60,0.08)', 'transparent', 'rgba(40,80,160,0.06)']}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
+        colors={[atmos.vignette, 'transparent', 'transparent', atmos.vignette]}
+        locations={[0, 0.12, 0.88, 1]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
+  );
+}
+
+export function LaserBackground({ lite }: { lite?: boolean } = {}) {
+  const { width: winW } = useWindowDimensions();
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  const tileW = Math.max(420, Math.min(640, Math.round(winW * 0.85)));
+  const tileH = Math.round((tileW * LASER_TILE_PX_H) / LASER_TILE_PX_W);
+
+  const onLayout = useCallback((e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setSize((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
+    }
+  }, []);
+
+  const cols = Math.max(1, Math.ceil(size.w / tileW) + 1);
+  const rows = Math.max(1, Math.ceil(size.h / tileH) + 1);
+  const tiles = useMemo(() => {
+    if (size.w <= 0 || size.h <= 0) return [] as { key: string; left: number; top: number }[];
+    const list: { key: string; left: number; top: number }[] = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        list.push({
+          key: `${r}-${c}`,
+          left: Math.round(c * tileW),
+          top: Math.round(r * tileH),
+        });
+      }
+    }
+    return list;
+  }, [cols, rows, size.w, size.h, tileW, tileH]);
+
+  // Dark hardwood playfloor — cool charcoal oak so the red laser dominates (ch09).
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={onLayout}>
+      <View style={[StyleSheet.absoluteFill, styles.laserBase]} />
+      <View style={[StyleSheet.absoluteFill, styles.clip]}>
+        {tiles.map((t) => (
+          <Image
+            key={t.key}
+            source={LASER_FLOOR_TILE}
+            style={{
+              position: 'absolute',
+              left: t.left,
+              top: t.top,
+              width: tileW,
+              height: tileH,
+            }}
+            resizeMode="stretch"
+            accessibilityIgnoresInvertColors
+          />
+        ))}
+      </View>
+
+      {/* Lamp spill from the far corner */}
+      <LinearGradient
+        colors={['rgba(255,200,140,0.18)', 'rgba(255,150,80,0.05)', 'transparent']}
+        start={{ x: 0.08, y: 0 }}
+        end={{ x: 0.75, y: 0.6 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Depth falloff toward the near edge */}
+      <LinearGradient
+        colors={['rgba(255,230,200,0.06)', 'transparent', 'rgba(0,0,0,0.45)']}
+        locations={[0, 0.35, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <LinearGradient
+        colors={['rgba(0,0,0,0.4)', 'transparent', 'transparent', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.14, 0.86, 1]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={styles.laserVignette} />
-      <View style={[styles.laserRing, styles.laserRing1]} />
-      <View style={[styles.laserRing, styles.laserRing2]} />
-      {!lite ? <View style={[styles.laserRing, styles.laserRing3]} /> : null}
-
-      <Twinkle left="14%" top="18%" delay={0} size={2} />
-      <Twinkle left="58%" top="16%" delay={600} size={3} />
-      <Twinkle left="76%" top="34%" delay={200} size={2} />
       {!lite ? (
         <>
-          <Twinkle left="32%" top="28%" delay={300} size={2} />
-          <Twinkle left="88%" top="22%" delay={900} size={2} />
-          <Twinkle left="22%" top="62%" delay={450} size={2} />
-          <Twinkle left="48%" top="70%" delay={700} size={2} />
-          <Twinkle left="68%" top="58%" delay={150} size={3} />
+          <Twinkle left="22%" top="20%" delay={0} size={2} />
+          <Twinkle left="68%" top="16%" delay={700} size={2} />
+          <Twinkle left="48%" top="42%" delay={350} size={2} />
         </>
-      ) : null}
-
-      <View style={styles.laserFloor} />
-      <View style={styles.laserFloorGlow} />
+      ) : (
+        <>
+          <Twinkle left="20%" top="22%" delay={0} size={2} />
+          <Twinkle left="70%" top="18%" delay={600} size={2} />
+        </>
+      )}
     </View>
   );
 }
@@ -180,57 +293,9 @@ const styles = StyleSheet.create({
   },
   twinkle: {
     position: 'absolute',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,230,190,0.85)',
   },
-  laserVignette: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-  },
-  laserRing: {
-    position: 'absolute',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,70,90,0.12)',
-  },
-  laserRing1: {
-    width: 180,
-    height: 180,
-    top: '28%',
-    left: '24%',
-  },
-  laserRing2: {
-    width: 280,
-    height: 280,
-    top: '18%',
-    left: '8%',
-    borderColor: 'rgba(80,120,200,0.1)',
-  },
-  laserRing3: {
-    width: 120,
-    height: 120,
-    top: '48%',
-    right: '10%',
-    borderColor: 'rgba(255,70,90,0.08)',
-  },
-  laserFloor: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '18%',
-    backgroundColor: 'rgba(8,12,18,0.55)',
-  },
-  laserFloorGlow: {
-    position: 'absolute',
-    left: '15%',
-    right: '15%',
-    bottom: '10%',
-    height: 40,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,50,70,0.06)',
+  laserBase: {
+    backgroundColor: '#1C1814',
   },
 });
