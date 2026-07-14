@@ -1,5 +1,6 @@
 ﻿import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -11,13 +12,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { THEME_LIST, type Theme } from '../src/themes';
 
-function ThemeButton({ theme }: { theme: Theme }) {
+const COUNT_OPTIONS = [4, 8, 12, 16, 20] as const;
+
+function ThemeButton({ theme, count }: { theme: Theme; count: number }) {
   return (
     <Pressable
-      onPress={() => router.push(`/play/${theme.id}`)}
+      onPress={() =>
+        router.push({
+          pathname: '/play/[theme]',
+          params: { theme: theme.id, count: String(count) },
+        })
+      }
       style={({ pressed }) => [styles.themePress, pressed && styles.themePressed]}
       accessibilityRole="button"
-      accessibilityLabel={`${theme.title}. ${theme.subtitle}`}
+      accessibilityLabel={`${theme.title}. ${theme.subtitle}. ${count} at once`}
     >
       <LinearGradient
         colors={theme.gradient}
@@ -36,6 +44,8 @@ function ThemeButton({ theme }: { theme: Theme }) {
 }
 
 export default function Index() {
+  const [entityCount, setEntityCount] = useState<number>(8);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
       <LinearGradient
@@ -53,9 +63,32 @@ export default function Index() {
         <Text style={styles.tagline}>A playground for cats & kittens</Text>
       </View>
 
+      <View style={styles.density}>
+        <Text style={styles.densityLabel}>On screen at once</Text>
+        <View style={styles.densityRow}>
+          {COUNT_OPTIONS.map((n) => {
+            const selected = n === entityCount;
+            return (
+              <Pressable
+                key={n}
+                onPress={() => setEntityCount(n)}
+                style={[styles.countChip, selected && styles.countChipSelected]}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${n} creatures`}
+              >
+                <Text style={[styles.countText, selected && styles.countTextSelected]}>
+                  {n}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
       <View style={styles.choices}>
         {THEME_LIST.map((theme) => (
-          <ThemeButton key={theme.id} theme={theme} />
+          <ThemeButton key={theme.id} theme={theme} count={entityCount} />
         ))}
       </View>
     </SafeAreaView>
@@ -95,7 +128,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     paddingTop: 36,
-    paddingBottom: 28,
+    paddingBottom: 20,
     alignItems: 'center',
   },
   brand: {
@@ -113,6 +146,43 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: '#4A5A52',
     textAlign: 'center',
+  },
+  density: {
+    marginBottom: 18,
+    gap: 10,
+  },
+  densityLabel: {
+    fontFamily: bodyFont,
+    fontSize: 14,
+    letterSpacing: 0.2,
+    color: '#5A6B62',
+    textAlign: 'center',
+  },
+  densityRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  countChip: {
+    minWidth: 48,
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(28, 42, 36, 0.06)',
+  },
+  countChipSelected: {
+    backgroundColor: '#1C2A24',
+  },
+  countText: {
+    fontFamily: bodyFont,
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1C2A24',
+  },
+  countTextSelected: {
+    color: '#F7F2E8',
   },
   choices: {
     flex: 1,
