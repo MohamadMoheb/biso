@@ -666,11 +666,6 @@ export default function Index() {
             },
           ]}
         >
-          <View style={styles.consoleGrip}>
-            <View style={styles.consoleGripLine} />
-            <View style={styles.consoleGripLine} />
-            <View style={styles.consoleGripLine} />
-          </View>
           <ScrollView
             bounces={false}
             showsVerticalScrollIndicator={false}
@@ -1019,20 +1014,6 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     overflow: 'hidden',
-  },
-  consoleGrip: {
-    position: 'absolute',
-    top: 5,
-    right: 14,
-    flexDirection: 'row',
-    gap: 3,
-    opacity: 0.45,
-  },
-  consoleGripLine: {
-    width: 3,
-    height: 8,
-    borderRadius: 2,
-    backgroundColor: GOLD,
   },
   modeRow: {
     flexDirection: 'row',
