@@ -102,6 +102,7 @@ export function Creature({
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const caught = useSharedValue(false);
+  const frozen = useSharedValue(paused ? 1 : 0);
 
   const aliveRef = useRef(true);
   const pausedRef = useRef(paused);
@@ -111,15 +112,17 @@ export function Creature({
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   soundsRef.current = sounds;
   pausedRef.current = paused;
+  frozen.value = paused ? 1 : 0;
 
   // Freeze in-flight motion when paused so entities don't keep sliding under the overlay.
   useEffect(() => {
+    frozen.value = paused ? 1 : 0;
     if (!paused) return;
     cancelAnimation(x);
     cancelAnimation(y);
     cancelAnimation(phase);
     posRef.current = { x: x.value, y: y.value };
-  }, [paused, phase, x, y]);
+  }, [paused, frozen, phase, x, y]);
 
   const pad = Math.max(16, creature.size * 0.12);
   const minX = pad;
@@ -161,12 +164,25 @@ export function Creature({
         step();
       });
 
+    /** Block the life loop until play is resumed. */
+    const waitWhilePaused = async () => {
+      while (aliveRef.current && !caught.value && pausedRef.current) {
+        await new Promise<void>((resolve) => {
+          const t = setTimeout(resolve, 80);
+          timersRef.current.push(t);
+        });
+      }
+    };
+
     const setPhase = (next: number, duration: number) => {
+      if (pausedRef.current) return;
       phaseRef.current = next;
       phase.value = withTiming(next, { duration, easing: Easing.linear });
     };
 
     const faceTowardX = async (nx: number, opts?: { turnPause?: boolean }) => {
+      await waitWhilePaused();
+      if (!aliveRef.current || caught.value) return;
       const dx = nx - posRef.current.x;
       if (Math.abs(dx) < FACE_FLIP_MIN_DX) return;
       const next = facingToward(posRef.current.x, nx);
@@ -189,7 +205,7 @@ export function Creature({
 
     const moveTo = (nx: number, ny: number, duration: number, easing: (v: number) => number) =>
       new Promise<void>((resolve) => {
-        if (!aliveRef.current || caught.value) {
+        if (!aliveRef.current || caught.value || pausedRef.current) {
           resolve();
           return;
         }
@@ -197,7 +213,6 @@ export function Creature({
         const finish = (finished: boolean) => {
           if (settled) return;
           settled = true;
-          // If paused/cancelled mid-move, keep the visual position — don't snap to the target.
           if (finished) {
             posRef.current = { x: nx, y: ny };
           } else {
@@ -218,6 +233,8 @@ export function Creature({
       opts?: { soundGap?: [number, number]; turnPause?: boolean },
     ) => {
       if (!aliveRef.current || caught.value) return;
+      await waitWhilePaused();
+      if (!aliveRef.current || caught.value) return;
 
       // Turn to face the destination before moving — never moonwalk.
       if (gait === 'crab') {
@@ -229,6 +246,8 @@ export function Creature({
         await faceTowardX(nx, { turnPause: opts?.turnPause });
       }
       if (!aliveRef.current || caught.value) return;
+      await waitWhilePaused();
+      if (!aliveRef.current || caught.value || pausedRef.current) return;
 
       const dist = Math.hypot(nx - posRef.current.x, ny - posRef.current.y);
       const speed = Math.max(32, profile.cruiseSpeed * profile.speed * speedMultiplier * pace);
@@ -239,6 +258,10 @@ export function Creature({
       const endAt = Date.now() + duration;
       void (async () => {
         while (aliveRef.current && !caught.value && Date.now() < endAt) {
+          if (pausedRef.current) {
+            await waitWhilePaused();
+            continue;
+          }
           soundsRef.current.playMove(emoji);
           await wait(rand(gap[0], gap[1]));
         }
@@ -252,6 +275,8 @@ export function Creature({
 
       setPhase(phaseRef.current + steps, duration);
       await moveTo(nx, ny, duration, pathEase);
+      await waitWhilePaused();
+      if (!aliveRef.current || caught.value) return;
       idleMotion();
     };
 
