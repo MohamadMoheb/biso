@@ -46,26 +46,29 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const commit = useCallback((next: Settings) => {
-    setSettings(next);
-    void saveSettings(next);
+  const commit = useCallback((updater: (prev: Settings) => Settings) => {
+    setSettings((prev) => {
+      const next = updater(prev);
+      void saveSettings(next);
+      return next;
+    });
   }, []);
 
   const value = useMemo<SettingsContextValue>(
     () => ({
       settings,
       ready,
-      setSoundEnabled: (soundEnabled) => commit({ ...settings, soundEnabled }),
-      setHapticsEnabled: (hapticsEnabled) => commit({ ...settings, hapticsEnabled }),
-      setDifficulty: (difficulty) => commit({ ...settings, difficulty }),
-      setSessionMinutes: (sessionMinutes) => commit({ ...settings, sessionMinutes }),
-      setCreatureCount: (creatureCount) => commit({ ...settings, creatureCount }),
-      markTipSeen: () => commit({ ...settings, tipSeen: true }),
+      setSoundEnabled: (soundEnabled) => commit((prev) => ({ ...prev, soundEnabled })),
+      setHapticsEnabled: (hapticsEnabled) => commit((prev) => ({ ...prev, hapticsEnabled })),
+      setDifficulty: (difficulty) => commit((prev) => ({ ...prev, difficulty })),
+      setSessionMinutes: (sessionMinutes) => commit((prev) => ({ ...prev, sessionMinutes })),
+      setCreatureCount: (creatureCount) => commit((prev) => ({ ...prev, creatureCount })),
+      markTipSeen: () => commit((prev) => ({ ...prev, tipSeen: true })),
       recordSession: () =>
-        commit({
-          ...settings,
-          sessionsPlayed: settings.sessionsPlayed + 1,
-        }),
+        commit((prev) => ({
+          ...prev,
+          sessionsPlayed: prev.sessionsPlayed + 1,
+        })),
     }),
     [settings, ready, commit],
   );
