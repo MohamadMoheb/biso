@@ -37,7 +37,7 @@ export function PlayHud({
           accessibilityRole="button"
           accessibilityLabel="Exit play"
         >
-          <Text style={styles.chipText}>←</Text>
+          <Text style={styles.chipText}>{'<'}</Text>
         </Pressable>
 
         <View style={styles.stats}>
@@ -53,7 +53,7 @@ export function PlayHud({
             accessibilityRole="button"
             accessibilityLabel={muted ? 'Unmute' : 'Mute'}
           >
-            <Text style={styles.chipText}>{muted ? '🔇' : '🔊'}</Text>
+            <Text style={styles.chipText}>{muted ? 'Off' : 'Snd'}</Text>
           </Pressable>
           <Pressable
             onPress={onTogglePause}
@@ -62,7 +62,7 @@ export function PlayHud({
             accessibilityRole="button"
             accessibilityLabel={paused ? 'Resume' : 'Pause'}
           >
-            <Text style={styles.chipText}>{paused ? '▶' : 'Ⅱ'}</Text>
+            <Text style={styles.chipText}>{paused ? '>' : '||'}</Text>
           </Pressable>
         </View>
       </View>
