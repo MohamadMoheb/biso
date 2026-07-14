@@ -17,8 +17,8 @@ export const THEMES: Record<ThemeId, Theme> = {
     subtitle: 'Swim with ocean friends',
     emoji: '🐠',
     entities: ['🐠', '🐟', '🐡', '🪼', '🦐', '🦀'],
-    gradient: ['#0A4D68', '#088395', '#05BFDB'],
-    accent: '#00FFD1',
+    gradient: ['#02182A', '#0A4660', '#1B8FA8'],
+    accent: '#7EF0E8',
   },
   desert: {
     id: 'desert',
@@ -26,8 +26,8 @@ export const THEMES: Record<ThemeId, Theme> = {
     subtitle: 'Chase sandy critters',
     emoji: '🦎',
     entities: ['🦎', '🪲', '🦋', '🦂', '🐞'],
-    gradient: ['#C2703D', '#E8A87C', '#F5D5AE'],
-    accent: '#FFB347',
+    gradient: ['#F2A65A', '#E8904A', '#D4A574'],
+    accent: '#FFE7A8',
   },
   grass: {
     id: 'grass',
@@ -35,8 +35,8 @@ export const THEMES: Record<ThemeId, Theme> = {
     subtitle: 'Play in the meadow',
     emoji: '🐇',
     entities: ['🐇', '🐰', '🐦', '🦋', '🐝', '🐿️'],
-    gradient: ['#2D6A4F', '#52B788', '#95D5B2'],
-    accent: '#B7F564',
+    gradient: ['#7EC8E3', '#A8D5A2', '#4F9B6A'],
+    accent: '#E8F7B0',
   },
 };
 
