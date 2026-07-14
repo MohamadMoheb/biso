@@ -9,14 +9,12 @@ export type CreatureSpawn = {
   emoji: string;
   size: number;
   edge: SpawnEdge;
-  /** Peek nest — mostly off-screen */
   nestX: number;
   nestY: number;
   themeId: ThemeId;
 };
 
 const DEFAULT_MAX_ON_SCREEN = 8;
-/** Big targets are easier for cats to track and bat. */
 const MIN_SIZE = 118;
 const MAX_SIZE = 190;
 
@@ -65,7 +63,6 @@ function nestForEdge(
 }
 
 function spawnIntervalForMax(maxOnScreen: number): number {
-  // Fewer, bigger critters — space spawns so chaos stays readable.
   return Math.round(Math.max(900, 2200 - maxOnScreen * 80));
 }
 
@@ -75,6 +72,7 @@ export function useSpawner(
   screenWidth: number,
   screenHeight: number,
   maxOnScreen: number = DEFAULT_MAX_ON_SCREEN,
+  sizeBoost: number = 1,
 ) {
   const [creatures, setCreatures] = useState<CreatureSpawn[]>([]);
   const idRef = useRef(0);
@@ -86,7 +84,7 @@ export function useSpawner(
 
   useEffect(() => {
     if (!active || !theme || screenWidth <= 0 || screenHeight <= 0) {
-      setCreatures([]);
+      if (!active) setCreatures([]);
       return;
     }
 
@@ -94,7 +92,8 @@ export function useSpawner(
       setCreatures((prev) => {
         if (prev.length >= cappedMax) return prev;
 
-        const size = Math.round(rand(MIN_SIZE, MAX_SIZE));
+        const base = Math.round(rand(MIN_SIZE, MAX_SIZE) * sizeBoost);
+        const size = Math.round(clamp(base, 96, 220));
         const edge = pickEdge();
         const nest = nestForEdge(edge, size, screenWidth, screenHeight);
 
@@ -115,17 +114,15 @@ export function useSpawner(
     spawn();
     const timer = setInterval(spawn, spawnIntervalForMax(cappedMax));
     return () => clearInterval(timer);
-  }, [active, theme, screenWidth, screenHeight, cappedMax]);
-
-  useEffect(() => {
-    if (!active) {
-      setCreatures([]);
-    }
-  }, [active]);
+  }, [active, theme, screenWidth, screenHeight, cappedMax, sizeBoost]);
 
   useEffect(() => {
     setCreatures((prev) => (prev.length > cappedMax ? prev.slice(0, cappedMax) : prev));
   }, [cappedMax]);
 
   return { creatures, removeCreature };
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
 }
