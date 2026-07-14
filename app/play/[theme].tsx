@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Creature } from '../../src/components/Creature';
@@ -39,11 +39,7 @@ export default function PlayScreen() {
   const { width, height } = useWindowDimensions();
   const [paused, setPaused] = useState(false);
   const [sessionOver, setSessionOver] = useState(false);
-  const [catches, setCatches] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [bestStreak, setBestStreak] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const lastCatchAt = useRef(0);
   const recordedRef = useRef(false);
 
   const muted = !settings.soundEnabled;
@@ -95,25 +91,19 @@ export default function PlayScreen() {
   useEffect(() => {
     if (sessionOver && !recordedRef.current) {
       recordedRef.current = true;
-      recordSession(catches, bestStreak);
+      recordSession();
     }
-  }, [sessionOver, catches, bestStreak, recordSession]);
+  }, [sessionOver, recordSession]);
 
   const onCatch = useCallback(
     (id: string) => {
       sounds.playPop();
       if (settings.hapticsEnabled) {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
-      const now = Date.now();
-      const nextStreak = now - lastCatchAt.current < 3200 ? streak + 1 : 1;
-      lastCatchAt.current = now;
-      setStreak(nextStreak);
-      setBestStreak((b) => Math.max(b, nextStreak));
-      setCatches((c) => c + 1);
       removeCreature(id);
     },
-    [sounds, settings.hapticsEnabled, streak, removeCreature],
+    [sounds, settings.hapticsEnabled, removeCreature],
   );
 
   const onExit = useCallback(
@@ -124,30 +114,20 @@ export default function PlayScreen() {
   );
 
   const exitHome = useCallback(() => {
-    if (!recordedRef.current && catches > 0) {
+    if (!recordedRef.current) {
       recordedRef.current = true;
-      recordSession(catches, bestStreak);
+      recordSession();
     }
     if (router.canGoBack()) router.back();
     else router.replace('/');
-  }, [catches, bestStreak, recordSession]);
+  }, [recordSession]);
 
   const playAgain = useCallback(() => {
     recordedRef.current = false;
-    setCatches(0);
-    setStreak(0);
-    setBestStreak(0);
     setElapsedSec(0);
     setSessionOver(false);
     setPaused(false);
   }, []);
-
-  const comboLabel = useMemo(() => {
-    if (streak >= 8) return 'Legendary!';
-    if (streak >= 5) return 'On fire!';
-    if (streak >= 3) return 'Nice streak!';
-    return null;
-  }, [streak]);
 
   if (!theme) {
     return <View style={styles.root} />;
@@ -175,8 +155,6 @@ export default function PlayScreen() {
       </View>
 
       <PlayHud
-        catches={catches}
-        streak={streak}
         elapsedSec={elapsedSec}
         muted={muted}
         paused={paused || sessionOver}
@@ -187,12 +165,6 @@ export default function PlayScreen() {
         }}
         onExit={exitHome}
       />
-
-      {comboLabel && !paused && !sessionOver ? (
-        <View style={styles.combo} pointerEvents="none">
-          <Text style={styles.comboText}>{comboLabel}</Text>
-        </View>
-      ) : null}
 
       {paused && !sessionOver ? (
         <Pressable
@@ -210,8 +182,6 @@ export default function PlayScreen() {
 
       {sessionOver ? (
         <SessionSummary
-          catches={catches}
-          bestStreak={bestStreak}
           elapsedSec={elapsedSec}
           title="Time for a stretch"
           subtitle="Short play sessions are kinder for paws and eyes."
@@ -234,21 +204,6 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-  },
-  combo: {
-    position: 'absolute',
-    top: '42%',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 35,
-  },
-  comboText: {
-    color: '#FFE08A',
-    fontSize: 28,
-    fontWeight: '800',
-    textShadowColor: 'rgba(0,0,0,0.35)',
-    textShadowRadius: 8,
   },
   pauseScrim: {
     position: 'absolute',
