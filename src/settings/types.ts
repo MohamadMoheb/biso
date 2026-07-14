@@ -39,18 +39,32 @@ export const DIFFICULTY_META: Record<
 
 const KEY = 'biso.settings.v1';
 
+function asBool(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
 export async function loadSettings(): Promise<Settings> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw) as Partial<Settings>;
+    const parsed: unknown = JSON.parse(raw);
+    const stored = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
+    // Field-by-field validation: storage contents are untrusted (corruption, old versions).
     // Count / pace / break are fixed — no homepage controls for them.
     return {
-      ...DEFAULT_SETTINGS,
-      ...parsed,
-      creatureCount: DEFAULT_SETTINGS.creatureCount,
+      soundEnabled: asBool(stored.soundEnabled, DEFAULT_SETTINGS.soundEnabled),
+      hapticsEnabled: asBool(stored.hapticsEnabled, DEFAULT_SETTINGS.hapticsEnabled),
+      catCamEnabled: asBool(stored.catCamEnabled, DEFAULT_SETTINGS.catCamEnabled),
       difficulty: DEFAULT_SETTINGS.difficulty,
       sessionMinutes: DEFAULT_SETTINGS.sessionMinutes,
+      creatureCount: DEFAULT_SETTINGS.creatureCount,
+      tipSeen: asBool(stored.tipSeen, DEFAULT_SETTINGS.tipSeen),
+      sessionsPlayed:
+        typeof stored.sessionsPlayed === 'number' &&
+        Number.isFinite(stored.sessionsPlayed) &&
+        stored.sessionsPlayed >= 0
+          ? Math.floor(stored.sessionsPlayed)
+          : DEFAULT_SETTINGS.sessionsPlayed,
     };
   } catch {
     return DEFAULT_SETTINGS;
