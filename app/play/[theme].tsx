@@ -21,12 +21,28 @@ import { isThemeId, THEMES } from '../../src/themes';
 export default function PlayScreen() {
   useKeepAwake();
 
-  const { theme: themeParam } = useLocalSearchParams<{ theme: string }>();
+  const { theme: themeParam, count: countParam } = useLocalSearchParams<{
+    theme: string;
+    count?: string;
+  }>();
   const valid = isThemeId(themeParam);
   const theme = valid ? THEMES[themeParam] : null;
+  const parsedCount = Number.parseInt(
+    Array.isArray(countParam) ? countParam[0] : (countParam ?? ''),
+    10,
+  );
+  const maxOnScreen = Number.isFinite(parsedCount)
+    ? Math.max(1, Math.min(24, parsedCount))
+    : 8;
 
   const { width, height } = useWindowDimensions();
-  const { creatures, removeCreature } = useSpawner(theme, valid, width, height);
+  const { creatures, removeCreature } = useSpawner(
+    theme,
+    valid,
+    width,
+    height,
+    maxOnScreen,
+  );
   const { playPop } = usePopSound();
 
   useEffect(() => {
