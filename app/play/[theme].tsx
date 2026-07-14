@@ -4,6 +4,8 @@ import * as SystemUI from 'expo-system-ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
+import { CatCam } from '../../src/components/CatCam';
+import { CatCamGallery } from '../../src/components/CatCamGallery';
 import { Creature } from '../../src/components/Creature';
 import { PlayHud } from '../../src/components/PlayHud';
 import { SessionSummary } from '../../src/components/SessionSummary';
@@ -38,6 +40,8 @@ export default function PlayScreen() {
   const [paused, setPaused] = useState(false);
   const [sessionOver, setSessionOver] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [snapCount, setSnapCount] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const recordedRef = useRef(false);
 
   const muted = !settings.soundEnabled;
