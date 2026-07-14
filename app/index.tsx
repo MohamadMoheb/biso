@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   FadeIn,
   FadeInDown,
@@ -29,14 +30,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemeBackground, LaserBackground } from '../src/components/ThemeBackground';
 import { useSettings } from '../src/settings/SettingsContext';
-import { DIFFICULTY_META, type Difficulty } from '../src/settings/types';
+import { DIFFICULTY_META, type Difficulty, type PlayMode } from '../src/settings/types';
 import { THEME_LIST, THEMES, type ThemeId } from '../src/themes';
 
 const COUNT_OPTIONS = [2, 4, 6, 8, 12] as const;
 const SESSION_OPTIONS: Array<0 | 5 | 10 | 15> = [0, 5, 10, 15];
 const DIFFICULTIES = Object.keys(DIFFICULTY_META) as Difficulty[];
-
-type ModeId = 'creatures' | 'laser';
 
 function cycle<T>(list: readonly T[], current: T, dir: 1 | -1): T {
   const i = list.indexOf(current);
@@ -85,6 +84,14 @@ function FloatEmoji({
       ),
     );
   }, [delay, rot, y]);
+
+  useEffect(() => {
+    return () => {
+      cancelAnimation(y);
+      cancelAnimation(rot);
+      cancelAnimation(scale);
+    };
+  }, [y, rot, scale]);
 
   const style = useAnimatedStyle(() => ({
     transform: [
@@ -157,6 +164,14 @@ function LaserStage({ width, height }: { width: number; height: number }) {
       true,
     );
   }, [glow, height, width, x, y]);
+
+  useEffect(() => {
+    return () => {
+      cancelAnimation(x);
+      cancelAnimation(y);
+      cancelAnimation(glow);
+    };
+  }, [x, y, glow]);
 
   const dotStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value }, { translateY: y.value }, { scale: glow.value }],
@@ -272,7 +287,7 @@ export default function Index() {
     ready,
   } = useSettings();
 
-  const [mode, setMode] = useState<ModeId>('creatures');
+  const [mode, setMode] = useState<PlayMode>('creatures');
   const [themeId, setThemeId] = useState<ThemeId>(THEME_LIST[0]!.id);
   const [tipOpen, setTipOpen] = useState(false);
   const playScale = useSharedValue(1);
@@ -342,8 +357,8 @@ export default function Index() {
             />
             <IconToggle
               on={settings.hapticsEnabled}
-              iconOn="radio-button-on"
-              iconOff="radio-button-off"
+              iconOn="pulse"
+              iconOff="pulse-outline"
               label={settings.hapticsEnabled ? 'Haptics off' : 'Haptics on'}
               onPress={() => {
                 tap();
@@ -378,33 +393,36 @@ export default function Index() {
           </View>
 
           {mode === 'creatures' ? (
-            <View style={styles.worldRow}>
-              {THEME_LIST.map((theme) => {
-                const on = theme.id === themeId;
-                return (
-                  <Pressable
-                    key={theme.id}
-                    onPress={() => {
-                      tap();
-                      setThemeId(theme.id);
-                    }}
-                    style={[styles.worldOrb, on && styles.worldOrbOn]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    accessibilityLabel={theme.title}
-                  >
-                    <LinearGradient
-                      colors={theme.gradient}
-                      style={[styles.worldOrbFill, on && styles.worldOrbFillOn]}
+            <View style={styles.worldBlock}>
+              <View style={styles.worldRow}>
+                {THEME_LIST.map((theme) => {
+                  const on = theme.id === themeId;
+                  return (
+                    <Pressable
+                      key={theme.id}
+                      onPress={() => {
+                        tap();
+                        setThemeId(theme.id);
+                      }}
+                      style={[styles.worldOrb, on && styles.worldOrbOn]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={theme.title}
                     >
-                      <Text style={styles.worldOrbEmoji}>{theme.emoji}</Text>
-                    </LinearGradient>
-                    <Text style={[styles.worldOrbLabel, on && styles.worldOrbLabelOn]}>
-                      {theme.title}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <LinearGradient
+                        colors={theme.gradient}
+                        style={[styles.worldOrbFill, on && styles.worldOrbFillOn]}
+                      >
+                        <Text style={styles.worldOrbEmoji}>{theme.emoji}</Text>
+                      </LinearGradient>
+                      <Text style={[styles.worldOrbLabel, on && styles.worldOrbLabelOn]}>
+                        {theme.title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={styles.worldHint}>{THEMES[themeId].subtitle}</Text>
             </View>
           ) : (
             <Text style={styles.laserNote}>Drag to steer · Tap the red dot to catch</Text>
@@ -619,6 +637,9 @@ const styles = StyleSheet.create({
     color: '#F0C36A',
     fontWeight: '700',
   },
+  worldBlock: {
+    gap: 10,
+  },
   worldRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -656,6 +677,13 @@ const styles = StyleSheet.create({
   },
   worldOrbLabelOn: {
     color: '#F0C36A',
+  },
+  worldHint: {
+    textAlign: 'center',
+    fontFamily: bodyFont,
+    fontSize: 13,
+    color: 'rgba(247,240,228,0.5)',
+    marginTop: -4,
   },
   laserNote: {
     textAlign: 'center',
