@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, {
   Easing,
+  interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -17,14 +18,15 @@ type CreatureProps = {
 };
 
 export function Creature({ creature, onCatch, onExit }: CreatureProps) {
-  const translateX = useSharedValue(creature.startX);
+  const progress = useSharedValue(0);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const caught = useSharedValue(false);
 
   useEffect(() => {
-    translateX.value = withTiming(
-      creature.endX,
+    progress.value = 0;
+    progress.value = withTiming(
+      1,
       {
         duration: creature.duration,
         easing: Easing.linear,
@@ -35,18 +37,34 @@ export function Creature({ creature, onCatch, onExit }: CreatureProps) {
         }
       },
     );
-  }, [creature.duration, creature.endX, creature.id, creature.startX, onExit, translateX, caught]);
+  }, [creature.duration, creature.id, onExit, progress, caught]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }, { scale: scale.value }],
-    opacity: opacity.value,
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    const t = progress.value;
+    const wave = Math.sin(t * Math.PI * 2 * creature.bobCycles);
+    const sway = Math.cos(t * Math.PI * 2 * creature.bobCycles) * creature.swayDegrees;
+
+    const x = interpolate(t, [0, 1], [creature.startX, creature.endX]);
+    const yOffset =
+      wave * creature.bobAmplitude + interpolate(t, [0, 1], [0, creature.driftY]);
+
+    return {
+      transform: [
+        { translateX: x },
+        { translateY: yOffset },
+        { scaleX: creature.facing * scale.value },
+        { scaleY: scale.value },
+        { rotate: `${sway}deg` },
+      ],
+      opacity: opacity.value,
+    };
+  });
 
   const handlePress = () => {
     if (caught.value) return;
     caught.value = true;
-    scale.value = withTiming(1.35, { duration: 90 });
-    opacity.value = withTiming(0, { duration: 160 }, (finished) => {
+    scale.value = withTiming(1.45, { duration: 100 });
+    opacity.value = withTiming(0, { duration: 150 }, (finished) => {
       if (finished) {
         runOnJS(onCatch)(creature.id);
       }
