@@ -409,8 +409,10 @@ export function Creature({
   );
 }
 
-const webHitStyle = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as const) : null;
-const webEmojiStyle = Platform.OS === 'web' ? ({ userSelect: 'none' } as const) : null;
+const webHitStyle =
+  Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as object) : null;
+const webEmojiStyle =
+  Platform.OS === 'web' ? ({ userSelect: 'none' } as unknown as object) : null;
 
 const styles = StyleSheet.create({
   wrap: {
