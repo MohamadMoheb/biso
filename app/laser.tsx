@@ -1,8 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
-import * as ScreenOrientation from 'expo-screen-orientation';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -53,15 +51,6 @@ export default function LaserScreen() {
   }, [paused, sessionOver, frozen]);
 
   useEffect(() => {
-    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
-      () => undefined,
-    );
-    return () => {
-      void ScreenOrientation.unlockAsync().catch(() => undefined);
-    };
-  }, []);
-
-  useEffect(() => {
     if (paused || sessionOver) return;
     const id = setInterval(() => setElapsedSec((s) => s + 1), 1000);
     return () => clearInterval(id);
@@ -91,7 +80,8 @@ export default function LaserScreen() {
     'worklet';
     if (frozen.value > 0) return;
     if (steering.value > 0) return;
-    autoAngle.value += 0.016 * 0.55 * speedSv.value;
+    // Pace multiplies wander rate strongly so Calm vs Wild is obvious when not steering.
+    autoAngle.value += 0.016 * (0.28 + 0.95 * speedSv.value);
     const cx = width * 0.5 - DOT / 2;
     const cy = height * 0.48 - DOT / 2;
     // Wide Lissajous path — keeps the laser near edges without leaving the playfield.
@@ -192,7 +182,6 @@ export default function LaserScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar hidden />
       <LaserBackground lite />
 
       {/* Full-screen steer layer (owner) */}
@@ -247,6 +236,7 @@ export default function LaserScreen() {
           elapsedSec={elapsedSec}
           title="Time for a break"
           subtitle="Short sessions keep play fresh."
+          scoreLabel={hits === 1 ? '1 catch' : `${hits} catches`}
           onPlayAgain={() => {
             recordedRef.current = false;
             setHits(0);
