@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -52,6 +52,11 @@ export function CatCam({ enabled, paused, mode, onSnap }: CatCamProps) {
     }
   }, [enabled, permission?.granted, requestPermission]);
 
+  // Fresh snap budget each session (enabled flips false on summary, true on Play Again).
+  useEffect(() => {
+    if (enabled) setSessionCount(0);
+  }, [enabled]);
+
   const flashStyle = useAnimatedStyle(() => ({
     opacity: flash.value,
   }));
@@ -90,8 +95,10 @@ export function CatCam({ enabled, paused, mode, onSnap }: CatCamProps) {
     }
   }, [flash, mode, onSnap, ready]);
 
+  const exhausted = sessionCount >= MAX_PER_SESSION;
+
   useEffect(() => {
-    if (!enabled || !permission?.granted) return;
+    if (!enabled || !permission?.granted || exhausted) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -116,10 +123,29 @@ export function CatCam({ enabled, paused, mode, onSnap }: CatCamProps) {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [enabled, permission?.granted, takeSnap]);
+  }, [enabled, permission?.granted, exhausted, takeSnap]);
 
   if (!enabled) return null;
-  if (!permission?.granted) return null;
+  // Snap budget spent — release the camera instead of keeping it powered all session.
+  if (exhausted) return null;
+  if (!permission) return null;
+
+  if (!permission.granted) {
+    // Denied (or dialog pending): a quiet, tappable route to Settings instead of silence.
+    if (permission.canAskAgain) return null;
+    return (
+      <Pressable
+        style={[styles.deniedChip, { right: ui.padX, bottom: Math.max(ui.insets.bottom, 8) + ui.s(64) }]}
+        onPress={() => {
+          void Linking.openSettings().catch(() => undefined);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Cat Cam needs camera access. Open settings"
+      >
+        <Text style={styles.deniedText}>Cat Cam needs camera access — tap to open Settings</Text>
+      </Pressable>
+    );
+  }
 
   const camW = ui.s(72);
   const camH = ui.s(96);
@@ -203,5 +229,21 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     backgroundColor: '#FFFFFF',
+  },
+  deniedChip: {
+    position: 'absolute',
+    maxWidth: 180,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    zIndex: 50,
+  },
+  deniedText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
