@@ -112,6 +112,15 @@ export function Creature({
   soundsRef.current = sounds;
   pausedRef.current = paused;
 
+  // Freeze in-flight motion when paused so entities don't keep sliding under the overlay.
+  useEffect(() => {
+    if (!paused) return;
+    cancelAnimation(x);
+    cancelAnimation(y);
+    cancelAnimation(phase);
+    posRef.current = { x: x.value, y: y.value };
+  }, [paused, phase, x, y]);
+
   const pad = Math.max(16, creature.size * 0.12);
   const minX = pad;
   const maxX = Math.max(pad, screenWidth - creature.size - pad);
@@ -169,6 +178,7 @@ export function Creature({
     };
 
     const idleMotion = () => {
+      if (pausedRef.current) return;
       if (!profile.idleDrift) {
         cancelAnimation(phase);
         phase.value = phaseRef.current;
@@ -183,15 +193,20 @@ export function Creature({
           resolve();
           return;
         }
-        posRef.current = { x: nx, y: ny };
         let settled = false;
-        const finish = () => {
+        const finish = (finished: boolean) => {
           if (settled) return;
           settled = true;
+          // If paused/cancelled mid-move, keep the visual position — don't snap to the target.
+          if (finished) {
+            posRef.current = { x: nx, y: ny };
+          } else {
+            posRef.current = { x: x.value, y: y.value };
+          }
           resolve();
         };
-        x.value = withTiming(nx, { duration, easing }, () => {
-          runOnJS(finish)();
+        x.value = withTiming(nx, { duration, easing }, (finished) => {
+          runOnJS(finish)(finished !== false);
         });
         y.value = withTiming(ny, { duration, easing });
       });
