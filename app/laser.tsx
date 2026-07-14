@@ -39,7 +39,6 @@ export default function LaserScreen() {
   const heading = useSharedValue(0.6);
   const wanderT = useSharedValue(0);
   const glow = useSharedValue(1);
-  const frozen = useSharedValue(0);
 
   const [paused, setPaused] = useState(false);
   const [sessionOver, setSessionOver] = useState(false);
@@ -59,10 +58,6 @@ export default function LaserScreen() {
   });
   const laserSoundsRef = useRef(laserSounds);
   laserSoundsRef.current = laserSounds;
-
-  useEffect(() => {
-    frozen.value = paused || sessionOver ? 1 : 0;
-  }, [paused, sessionOver, frozen]);
 
   useEffect(() => {
     if (paused || sessionOver) return;
@@ -99,18 +94,19 @@ export default function LaserScreen() {
     };
   };
 
-  useFrameCallback(() => {
+  const frameTick = useFrameCallback((frame) => {
     'worklet';
-    if (frozen.value > 0) return;
     if (steering.value > 0) return;
 
+    // Real frame delta (clamped across stalls) — keeps speed identical on 60/90/120 Hz displays.
+    const dt = Math.min(frame.timeSincePreviousFrame ?? 16.7, 64) / 1000;
     const pace = 0.28 + 0.95 * speedSv.value;
-    wanderT.value += 0.016 * pace;
+    wanderT.value += dt * pace;
     // Gentle heading drift so the path feels alive without locking to one corner.
     heading.value +=
-      (Math.sin(wanderT.value * 0.9) * 0.55 + Math.sin(wanderT.value * 2.3) * 0.25) * 0.016 * pace;
+      (Math.sin(wanderT.value * 0.9) * 0.55 + Math.sin(wanderT.value * 2.3) * 0.25) * dt * pace;
 
-    const step = (2.8 + 7.5 * pace) * (0.85 + 0.15 * Math.sin(wanderT.value * 1.7));
+    const step = (2.8 + 7.5 * pace) * (0.85 + 0.15 * Math.sin(wanderT.value * 1.7)) * (dt * 60);
     const dx = Math.cos(heading.value) * step;
     const dy = Math.sin(heading.value) * step * (height / Math.max(width, 1));
 
@@ -135,6 +131,11 @@ export default function LaserScreen() {
     x.value = nx;
     y.value = ny;
   });
+
+  // Stop the per-frame worklet entirely while paused / on the summary screen.
+  useEffect(() => {
+    frameTick.setActive(!paused && !sessionOver);
+  }, [frameTick, paused, sessionOver]);
 
   const registerHit = useCallback(() => {
     if (pausedRef.current || sessionOverRef.current) return;
