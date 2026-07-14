@@ -117,6 +117,7 @@ export default function PlayScreen() {
   const playAgain = useCallback(() => {
     recordedRef.current = false;
     setElapsedSec(0);
+    setSnapCount(0);
     setSessionOver(false);
     setPaused(false);
   }, []);
@@ -144,6 +145,13 @@ export default function PlayScreen() {
           />
         ))}
       </View>
+
+      <CatCam
+        enabled={settings.catCamEnabled && !sessionOver}
+        paused={paused || sessionOver}
+        mode="creatures"
+        onSnap={() => setSnapCount((c) => c + 1)}
+      />
 
       <PlayHud
         elapsedSec={elapsedSec}
@@ -176,10 +184,14 @@ export default function PlayScreen() {
           elapsedSec={elapsedSec}
           title="Time for a stretch"
           subtitle={theme.subtitle}
+          snapCount={snapCount}
+          onViewSnaps={() => setGalleryOpen(true)}
           onPlayAgain={playAgain}
           onHome={exitHome}
         />
       ) : null}
+
+      <CatCamGallery visible={galleryOpen} onClose={() => setGalleryOpen(false)} />
     </View>
   );
 }
