@@ -246,7 +246,6 @@ function FloatSprite({
       accessibilityLabel={`Wake ${emoji}`}
     >
       <Animated.View style={animatedStyle}>
-        {hero ? <View style={[styles.targetRing, { width: size * 1.36, height: size * 1.36 }]} /> : null}
         <Text style={[styles.spriteText, { fontSize: size }]}>{emoji}</Text>
       </Animated.View>
     </Pressable>
@@ -861,15 +860,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: PAPER,
-  },
-  targetRing: {
-    position: 'absolute',
-    left: '-18%',
-    top: '-18%',
-    borderWidth: 2,
-    borderColor: 'rgba(255,248,233,0.55)',
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,209,102,0.12)',
   },
   spriteText: {
     textAlign: 'center',
