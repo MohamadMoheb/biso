@@ -1,5 +1,15 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import type { Theme, ThemeId } from '../themes';
 
@@ -7,32 +17,187 @@ type ThemeBackgroundProps = {
   theme: Theme;
 };
 
+function DriftBubble({
+  size,
+  left,
+  bottom,
+  delay,
+  travel,
+  duration,
+}: {
+  size: number;
+  left: `${number}%`;
+  bottom: `${number}%`;
+  delay: number;
+  travel: number;
+  duration: number;
+}) {
+  const y = useSharedValue(0);
+  const opacity = useSharedValue(0.35);
+
+  useEffect(() => {
+    y.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(-travel, { duration, easing: Easing.out(Easing.quad) }),
+          withTiming(0, { duration: 0 }),
+        ),
+        -1,
+        false,
+      ),
+    );
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(0.7, { duration: duration * 0.35 }),
+          withTiming(0.15, { duration: duration * 0.65 }),
+        ),
+        -1,
+        false,
+      ),
+    );
+  }, [delay, duration, opacity, travel, y]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: y.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.bubble,
+        { width: size, height: size, left, bottom, borderRadius: size / 2 },
+        style,
+      ]}
+    />
+  );
+}
+
+function Twinkle({
+  left,
+  top,
+  delay,
+  size = 3,
+}: {
+  left: `${number}%`;
+  top: `${number}%`;
+  delay: number;
+  size?: number;
+}) {
+  const opacity = useSharedValue(0.2);
+  useEffect(() => {
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(0.9, { duration: 900, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.15, { duration: 1100, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        true,
+      ),
+    );
+  }, [delay, opacity]);
+
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.twinkle,
+        { left, top, width: size, height: size, borderRadius: size / 2 },
+        style,
+      ]}
+    />
+  );
+}
+
+function SwayBlade({
+  left,
+  height,
+  delay,
+  rotateBase,
+  color,
+}: {
+  left: `${number}%`;
+  height: number;
+  delay: number;
+  rotateBase: number;
+  color: string;
+}) {
+  const rot = useSharedValue(rotateBase);
+  useEffect(() => {
+    rot.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(rotateBase + 8, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
+          withTiming(rotateBase - 6, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        true,
+      ),
+    );
+  }, [delay, rotateBase, rot]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rot.value}deg` }],
+  }));
+
+  return (
+    <Animated.View
+      style={[styles.blade, { left, height, backgroundColor: color }, style]}
+    />
+  );
+}
+
 function SeaDecor() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
-        colors={['rgba(180,240,255,0.28)', 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.45 }}
-        style={styles.seaSurfaceGlow}
+        colors={['rgba(90,210,255,0.35)', 'rgba(20,80,120,0.05)', 'transparent']}
+        locations={[0, 0.35, 0.7]}
+        style={styles.seaCanopy}
       />
-      <View style={[styles.ray, styles.ray1]} />
-      <View style={[styles.ray, styles.ray2]} />
-      <View style={[styles.ray, styles.ray3]} />
 
-      <View style={[styles.bubble, styles.b1]} />
-      <View style={[styles.bubble, styles.b2]} />
-      <View style={[styles.bubble, styles.b3]} />
-      <View style={[styles.bubble, styles.b4]} />
-      <View style={[styles.bubble, styles.b5]} />
+      <View style={[styles.rayBeam, styles.rayA]} />
+      <View style={[styles.rayBeam, styles.rayB]} />
+      <View style={[styles.rayBeam, styles.rayC]} />
+      <View style={[styles.rayBeam, styles.rayD]} />
 
-      <View style={[styles.seaweed, styles.weed1]} />
-      <View style={[styles.seaweed, styles.weed2]} />
-      <View style={[styles.seaweed, styles.weed3]} />
-      <View style={[styles.seaweed, styles.weed4]} />
+      <View style={styles.caustic} />
+      <View style={[styles.caustic, styles.caustic2]} />
 
-      <View style={styles.seaFloor} />
-      <View style={styles.seaFloorRipple} />
+      <DriftBubble size={14} left="12%" bottom="18%" delay={0} travel={220} duration={4200} />
+      <DriftBubble size={10} left="28%" bottom="12%" delay={600} travel={260} duration={5000} />
+      <DriftBubble size={18} left="48%" bottom="8%" delay={200} travel={240} duration={4600} />
+      <DriftBubble size={8} left="66%" bottom="22%" delay={900} travel={200} duration={3800} />
+      <DriftBubble size={12} left="78%" bottom="14%" delay={400} travel={280} duration={5200} />
+      <DriftBubble size={16} left="86%" bottom="30%" delay={1100} travel={180} duration={4000} />
+      <DriftBubble size={9} left="38%" bottom="28%" delay={1500} travel={210} duration={4400} />
+
+      <View style={[styles.coral, styles.coralL]} />
+      <View style={[styles.coral, styles.coralL2]} />
+      <View style={[styles.coral, styles.coralR]} />
+      <View style={[styles.coral, styles.coralR2]} />
+
+      <View style={[styles.weedLeaf, styles.weedA]} />
+      <View style={[styles.weedLeaf, styles.weedB]} />
+      <View style={[styles.weedLeaf, styles.weedC]} />
+      <View style={[styles.weedLeaf, styles.weedD]} />
+      <View style={[styles.weedLeaf, styles.weedE]} />
+
+      <LinearGradient
+        colors={['transparent', 'rgba(6,34,52,0.55)', 'rgba(4,24,38,0.85)']}
+        style={styles.seaBed}
+      />
+      <View style={styles.sandBar} />
+      <View style={styles.sandSpeck1} />
+      <View style={styles.sandSpeck2} />
+      <View style={styles.sandSpeck3} />
     </View>
   );
 }
@@ -41,31 +206,46 @@ function DesertDecor() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
-        colors={['#F7C98A', '#F0A85C', 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.55 }}
+        colors={['#FFD089', '#F4A261', 'transparent']}
+        locations={[0, 0.28, 0.62]}
         style={StyleSheet.absoluteFill}
       />
+      <LinearGradient
+        colors={['transparent', 'rgba(180,90,40,0.25)']}
+        style={styles.desertWarmth}
+      />
 
+      <View style={styles.sunAura} />
+      <View style={styles.sunMid} />
       <View style={styles.sunCore} />
-      <View style={styles.sunHalo} />
-      <View style={styles.sunRim} />
 
-      <View style={[styles.heat, styles.heat1]} />
-      <View style={[styles.heat, styles.heat2]} />
+      <Twinkle left="18%" top="16%" delay={0} size={2} />
+      <Twinkle left="42%" top="22%" delay={400} size={2} />
+      <Twinkle left="70%" top="14%" delay={800} size={3} />
 
-      <View style={[styles.cactus, styles.cactusLeft]}>
-        <View style={styles.cactusArmL} />
-        <View style={styles.cactusArmR} />
+      <View style={styles.heatBand1} />
+      <View style={styles.heatBand2} />
+      <View style={styles.heatBand3} />
+
+      <View style={styles.rockFar} />
+      <View style={styles.rockNear} />
+
+      <View style={[styles.cactus, styles.cactusTall]}>
+        <View style={styles.armLeft} />
+        <View style={styles.armRight} />
       </View>
-      <View style={[styles.cactus, styles.cactusRight]}>
-        <View style={[styles.cactusArmL, styles.cactusArmSmall]} />
+      <View style={[styles.cactus, styles.cactusShort]}>
+        <View style={[styles.armLeft, styles.armSmall]} />
       </View>
+      <View style={[styles.cactus, styles.cactusTiny]} />
 
-      <View style={[styles.dune, styles.duneBack]} />
+      <View style={[styles.dune, styles.duneFar]} />
       <View style={[styles.dune, styles.duneMid]} />
-      <View style={[styles.dune, styles.duneFront]} />
-      <View style={styles.sandGrain} />
+      <View style={[styles.dune, styles.duneNear]} />
+      <LinearGradient
+        colors={['rgba(255,220,160,0.0)', 'rgba(255,230,180,0.35)']}
+        style={styles.sandGlow}
+      />
     </View>
   );
 }
@@ -74,33 +254,42 @@ function GrassDecor() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
-        colors={['#9FD6F0', '#B7E0C8', 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.55 }}
+        colors={['#7EC8F0', '#A8D8C0', 'transparent']}
+        locations={[0, 0.4, 0.72]}
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={styles.cloudA} />
-      <View style={styles.cloudB} />
-      <View style={styles.cloudC} />
-
+      <View style={styles.sunSoftHalo} />
       <View style={styles.sunSoft} />
-      <View style={styles.sunSoftCore} />
 
-      <View style={[styles.hill, styles.hillBack]} />
+      <View style={[styles.cloud, styles.cloud1]}>
+        <View style={[styles.cloudPuff, styles.puffA]} />
+        <View style={[styles.cloudPuff, styles.puffB]} />
+      </View>
+      <View style={[styles.cloud, styles.cloud2]}>
+        <View style={[styles.cloudPuff, styles.puffC]} />
+        <View style={[styles.cloudPuff, styles.puffD]} />
+      </View>
+      <View style={[styles.cloud, styles.cloud3]} />
+
+      <View style={[styles.hill, styles.hillFar]} />
       <View style={[styles.hill, styles.hillMid]} />
-      <View style={[styles.hill, styles.hillFront]} />
+      <View style={[styles.hill, styles.hillNear]} />
 
-      <View style={[styles.blade, styles.blade1]} />
-      <View style={[styles.blade, styles.blade2]} />
-      <View style={[styles.blade, styles.blade3]} />
-      <View style={[styles.blade, styles.blade4]} />
-      <View style={[styles.blade, styles.blade5]} />
-      <View style={[styles.blade, styles.blade6]} />
+      <SwayBlade left="5%" height={52} delay={0} rotateBase={-10} color="rgba(34,100,55,0.65)" />
+      <SwayBlade left="10%" height={38} delay={200} rotateBase={6} color="rgba(48,120,62,0.55)" />
+      <SwayBlade left="18%" height={46} delay={100} rotateBase={-4} color="rgba(40,110,58,0.6)" />
+      <SwayBlade left="42%" height={40} delay={300} rotateBase={8} color="rgba(36,105,55,0.55)" />
+      <SwayBlade left="50%" height={54} delay={150} rotateBase={-8} color="rgba(42,115,60,0.6)" />
+      <SwayBlade left="72%" height={44} delay={250} rotateBase={10} color="rgba(34,100,55,0.58)" />
+      <SwayBlade left="80%" height={36} delay={50} rotateBase={-6} color="rgba(48,120,62,0.5)" />
+      <SwayBlade left="88%" height={50} delay={350} rotateBase={4} color="rgba(40,110,58,0.62)" />
 
-      <View style={[styles.flower, styles.flower1]} />
-      <View style={[styles.flower, styles.flower2]} />
-      <View style={[styles.flower, styles.flower3]} />
+      <View style={[styles.bloom, styles.bloom1]} />
+      <View style={[styles.bloom, styles.bloom2]} />
+      <View style={[styles.bloom, styles.bloom3]} />
+      <View style={[styles.bloom, styles.bloom4]} />
+      <View style={[styles.bloom, styles.bloom5]} />
     </View>
   );
 }
@@ -116,8 +305,8 @@ export function ThemeBackground({ theme }: ThemeBackgroundProps) {
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
         colors={theme.gradient}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 0.85, y: 1 }}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
       <Decor id={theme.id} />
@@ -125,275 +314,477 @@ export function ThemeBackground({ theme }: ThemeBackgroundProps) {
   );
 }
 
+export function LaserBackground() {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <LinearGradient
+        colors={['#04060A', '#0C1018', '#081018', '#05070C']}
+        locations={[0, 0.35, 0.7, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <LinearGradient
+        colors={['rgba(255,40,60,0.08)', 'transparent', 'rgba(40,80,160,0.06)']}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View style={styles.laserVignette} />
+      <View style={[styles.laserRing, styles.laserRing1]} />
+      <View style={[styles.laserRing, styles.laserRing2]} />
+      <View style={[styles.laserRing, styles.laserRing3]} />
+
+      <Twinkle left="14%" top="18%" delay={0} size={2} />
+      <Twinkle left="32%" top="28%" delay={300} size={2} />
+      <Twinkle left="58%" top="16%" delay={600} size={3} />
+      <Twinkle left="76%" top="34%" delay={200} size={2} />
+      <Twinkle left="88%" top="22%" delay={900} size={2} />
+      <Twinkle left="22%" top="62%" delay={450} size={2} />
+      <Twinkle left="48%" top="70%" delay={700} size={2} />
+      <Twinkle left="68%" top="58%" delay={150} size={3} />
+
+      <View style={styles.laserFloor} />
+      <View style={styles.laserFloorGlow} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  seaSurfaceGlow: {
+  seaCanopy: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
-    height: '40%',
+    height: '48%',
   },
-  ray: {
+  rayBeam: {
     position: 'absolute',
-    top: 0,
-    width: 46,
-    height: '70%',
-    backgroundColor: 'rgba(180, 240, 255, 0.08)',
-    transform: [{ skewX: '-12deg' }],
+    top: '-5%',
+    height: '75%',
+    backgroundColor: 'rgba(160, 230, 255, 0.07)',
+    transform: [{ skewX: '-14deg' }],
   },
-  ray1: { left: '18%' },
-  ray2: { left: '38%', width: 34, opacity: 0.7 },
-  ray3: { left: '58%', width: 28, opacity: 0.55 },
+  rayA: { left: '10%', width: 52 },
+  rayB: { left: '32%', width: 36, opacity: 0.8 },
+  rayC: { left: '52%', width: 44, opacity: 0.65 },
+  rayD: { left: '74%', width: 28, opacity: 0.5 },
+  caustic: {
+    position: 'absolute',
+    top: '20%',
+    left: '8%',
+    width: '40%',
+    height: 60,
+    borderRadius: 40,
+    backgroundColor: 'rgba(120,220,255,0.08)',
+    transform: [{ rotate: '-8deg' }],
+  },
+  caustic2: {
+    top: '34%',
+    left: '48%',
+    width: '42%',
+    height: 48,
+    transform: [{ rotate: '6deg' }],
+  },
   bubble: {
     position: 'absolute',
-    borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: 'rgba(200,245,255,0.45)',
+    borderColor: 'rgba(200,245,255,0.55)',
     backgroundColor: 'rgba(200,245,255,0.12)',
   },
-  b1: { width: 18, height: 18, top: '28%', left: '14%' },
-  b2: { width: 12, height: 12, top: '46%', left: '72%' },
-  b3: { width: 22, height: 22, top: '58%', left: '24%' },
-  b4: { width: 10, height: 10, top: '34%', left: '84%' },
-  b5: { width: 14, height: 14, top: '72%', left: '60%' },
-  seaweed: {
+  coral: {
     position: 'absolute',
-    bottom: '10%',
-    width: 14,
+    bottom: '12%',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+  },
+  coralL: {
+    left: '4%',
+    width: 34,
+    height: 70,
+    backgroundColor: 'rgba(180,70,90,0.35)',
+  },
+  coralL2: {
+    left: '12%',
+    width: 22,
+    height: 48,
+    backgroundColor: 'rgba(210,100,70,0.28)',
+  },
+  coralR: {
+    right: '8%',
+    width: 28,
+    height: 62,
+    backgroundColor: 'rgba(160,80,140,0.3)',
+  },
+  coralR2: {
+    right: '16%',
+    width: 18,
+    height: 40,
+    backgroundColor: 'rgba(200,90,80,0.25)',
+  },
+  weedLeaf: {
+    position: 'absolute',
+    bottom: '14%',
+    width: 12,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    backgroundColor: 'rgba(20, 90, 70, 0.55)',
+    backgroundColor: 'rgba(18, 100, 78, 0.55)',
   },
-  weed1: { left: '8%', height: 90, transform: [{ rotate: '-8deg' }] },
-  weed2: { left: '18%', height: 64, backgroundColor: 'rgba(28, 110, 80, 0.45)' },
-  weed3: { right: '16%', height: 78, transform: [{ rotate: '10deg' }] },
-  weed4: { right: '8%', height: 52, backgroundColor: 'rgba(18, 80, 66, 0.5)' },
-  seaFloor: {
+  weedA: { left: '24%', height: 100, transform: [{ rotate: '-12deg' }] },
+  weedB: { left: '30%', height: 72, backgroundColor: 'rgba(24,120,90,0.45)', transform: [{ rotate: '6deg' }] },
+  weedC: { right: '28%', height: 88, transform: [{ rotate: '10deg' }] },
+  weedD: { right: '22%', height: 60, backgroundColor: 'rgba(14,90,70,0.5)' },
+  weedE: { left: '58%', height: 54, backgroundColor: 'rgba(30,110,85,0.4)', transform: [{ rotate: '-4deg' }] },
+  seaBed: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '22%',
+  },
+  sandBar: {
+    position: 'absolute',
+    left: '-5%',
+    right: '-5%',
+    bottom: 0,
+    height: '11%',
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
+    backgroundColor: 'rgba(40, 70, 70, 0.55)',
+  },
+  sandSpeck1: {
+    position: 'absolute',
+    bottom: '6%',
+    left: '20%',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(180,200,160,0.35)',
+  },
+  sandSpeck2: {
+    position: 'absolute',
+    bottom: '4%',
+    left: '55%',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(200,180,120,0.3)',
+  },
+  sandSpeck3: {
+    position: 'absolute',
+    bottom: '7%',
+    right: '24%',
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(160,190,170,0.28)',
+  },
+
+  desertWarmth: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '55%',
+  },
+  sunAura: {
+    position: 'absolute',
+    top: '-2%',
+    right: '-2%',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(255, 200, 90, 0.18)',
+  },
+  sunMid: {
+    position: 'absolute',
+    top: '4%',
+    right: '6%',
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    backgroundColor: 'rgba(255, 214, 100, 0.35)',
+  },
+  sunCore: {
+    position: 'absolute',
+    top: '8%',
+    right: '11%',
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: 'rgba(255, 236, 150, 0.95)',
+  },
+  heatBand1: {
+    position: 'absolute',
+    top: '34%',
+    left: '6%',
+    right: '10%',
+    height: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  heatBand2: {
+    position: 'absolute',
+    top: '39%',
+    left: '14%',
+    right: '18%',
+    height: 5,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  heatBand3: {
+    position: 'absolute',
+    top: '43%',
+    left: '22%',
+    right: '26%',
+    height: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  rockFar: {
+    position: 'absolute',
+    bottom: '28%',
+    left: '38%',
+    width: 70,
+    height: 28,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 36,
+    backgroundColor: 'rgba(120,70,40,0.28)',
+  },
+  rockNear: {
+    position: 'absolute',
+    bottom: '24%',
+    right: '30%',
+    width: 48,
+    height: 22,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 24,
+    backgroundColor: 'rgba(100,60,35,0.32)',
+  },
+  cactus: {
+    position: 'absolute',
+    borderRadius: 12,
+    backgroundColor: 'rgba(52, 108, 58, 0.58)',
+  },
+  cactusTall: {
+    left: '10%',
+    bottom: '24%',
+    width: 18,
+    height: 86,
+  },
+  cactusShort: {
+    right: '14%',
+    bottom: '22%',
+    width: 14,
+    height: 58,
+  },
+  cactusTiny: {
+    left: '28%',
+    bottom: '22%',
+    width: 10,
+    height: 34,
+    backgroundColor: 'rgba(48, 100, 54, 0.45)',
+  },
+  armLeft: {
+    position: 'absolute',
+    left: -18,
+    top: 22,
+    width: 20,
+    height: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(52, 108, 58, 0.58)',
+  },
+  armRight: {
+    position: 'absolute',
+    right: -16,
+    top: 36,
+    width: 18,
+    height: 11,
+    borderRadius: 8,
+    backgroundColor: 'rgba(52, 108, 58, 0.58)',
+  },
+  armSmall: {
+    width: 14,
+    top: 16,
+  },
+  dune: {
+    position: 'absolute',
+    left: '-14%',
+    right: '-14%',
+    borderTopLeftRadius: 220,
+    borderTopRightRadius: 220,
+  },
+  duneFar: {
+    bottom: '12%',
+    height: '30%',
+    backgroundColor: 'rgba(168, 98, 48, 0.42)',
+  },
+  duneMid: {
+    bottom: '2%',
+    height: '26%',
+    backgroundColor: 'rgba(205, 140, 80, 0.55)',
+    transform: [{ translateX: 40 }],
+  },
+  duneNear: {
+    bottom: '-6%',
+    height: '18%',
+    backgroundColor: 'rgba(236, 190, 130, 0.7)',
+    transform: [{ translateX: -32 }],
+  },
+  sandGlow: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     height: '16%',
-    backgroundColor: 'rgba(8, 40, 58, 0.55)',
-    borderTopLeftRadius: 90,
-    borderTopRightRadius: 90,
-  },
-  seaFloorRipple: {
-    position: 'absolute',
-    left: '10%',
-    right: '10%',
-    bottom: '12%',
-    height: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(120, 190, 200, 0.12)',
   },
 
-  sunCore: {
+  sunSoftHalo: {
     position: 'absolute',
-    top: '7%',
-    right: '10%',
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    backgroundColor: 'rgba(255, 230, 140, 0.95)',
-  },
-  sunHalo: {
-    position: 'absolute',
-    top: '3%',
-    right: '5%',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 210, 100, 0.28)',
-  },
-  sunRim: {
-    position: 'absolute',
-    top: '0%',
-    right: '1%',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(255, 190, 80, 0.12)',
-  },
-  heat: {
-    position: 'absolute',
-    left: '8%',
-    right: '8%',
-    height: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  heat1: { top: '36%' },
-  heat2: { top: '42%', opacity: 0.7, transform: [{ scaleX: 0.85 }] },
-  cactus: {
-    position: 'absolute',
-    bottom: '22%',
-    width: 18,
-    height: 70,
-    borderRadius: 10,
-    backgroundColor: 'rgba(62, 110, 54, 0.55)',
-  },
-  cactusLeft: { left: '12%' },
-  cactusRight: { right: '18%', height: 52, width: 14 },
-  cactusArmL: {
-    position: 'absolute',
-    left: -16,
-    top: 18,
-    width: 18,
-    height: 12,
-    borderRadius: 8,
-    backgroundColor: 'rgba(62, 110, 54, 0.55)',
-  },
-  cactusArmR: {
-    position: 'absolute',
-    right: -14,
-    top: 28,
-    width: 16,
-    height: 11,
-    borderRadius: 8,
-    backgroundColor: 'rgba(62, 110, 54, 0.55)',
-  },
-  cactusArmSmall: {
-    width: 14,
-    top: 14,
-  },
-  dune: {
-    position: 'absolute',
-    left: '-12%',
-    right: '-12%',
-    borderTopLeftRadius: 200,
-    borderTopRightRadius: 200,
-  },
-  duneBack: {
-    bottom: '10%',
-    height: '30%',
-    backgroundColor: 'rgba(176, 110, 58, 0.45)',
-  },
-  duneMid: {
-    bottom: 0,
-    height: '26%',
-    backgroundColor: 'rgba(210, 150, 95, 0.55)',
-    transform: [{ translateX: 36 }],
-  },
-  duneFront: {
-    bottom: '-5%',
-    height: '18%',
-    backgroundColor: 'rgba(236, 196, 140, 0.65)',
-    transform: [{ translateX: -28 }],
-  },
-  sandGrain: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '8%',
-    backgroundColor: 'rgba(245, 220, 170, 0.25)',
-  },
-
-  cloudA: {
-    position: 'absolute',
-    top: '10%',
-    left: '8%',
-    width: 86,
-    height: 28,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-  },
-  cloudB: {
-    position: 'absolute',
-    top: '16%',
+    top: '4%',
     right: '12%',
     width: 110,
-    height: 34,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.45)',
-  },
-  cloudC: {
-    position: 'absolute',
-    top: '22%',
-    left: '42%',
-    width: 64,
-    height: 22,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255, 245, 190, 0.28)',
   },
   sunSoft: {
     position: 'absolute',
-    top: '6%',
-    right: '18%',
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: 'rgba(255, 245, 180, 0.35)',
+    top: '8%',
+    right: '16%',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 250, 210, 0.85)',
   },
-  sunSoftCore: {
+  cloud: {
     position: 'absolute',
-    top: '9%',
-    right: '21%',
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: 'rgba(255, 248, 200, 0.7)',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 24,
   },
+  cloud1: {
+    top: '12%',
+    left: '6%',
+    width: 92,
+    height: 30,
+  },
+  cloud2: {
+    top: '18%',
+    right: '8%',
+    width: 108,
+    height: 34,
+    backgroundColor: 'rgba(255,255,255,0.42)',
+  },
+  cloud3: {
+    top: '24%',
+    left: '40%',
+    width: 70,
+    height: 22,
+    backgroundColor: 'rgba(255,255,255,0.32)',
+  },
+  cloudPuff: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderRadius: 20,
+  },
+  puffA: { width: 36, height: 28, top: -12, left: 16 },
+  puffB: { width: 28, height: 22, top: -8, right: 12 },
+  puffC: { width: 40, height: 30, top: -14, left: 20 },
+  puffD: { width: 30, height: 24, top: -10, right: 16 },
   hill: {
     position: 'absolute',
-    borderTopLeftRadius: 220,
-    borderTopRightRadius: 220,
+    borderTopLeftRadius: 240,
+    borderTopRightRadius: 240,
   },
-  hillBack: {
-    left: '-25%',
-    right: '18%',
-    bottom: '8%',
-    height: '36%',
-    backgroundColor: 'rgba(36, 110, 70, 0.5)',
+  hillFar: {
+    left: '-28%',
+    right: '20%',
+    bottom: '10%',
+    height: '38%',
+    backgroundColor: 'rgba(28, 96, 62, 0.48)',
   },
   hillMid: {
-    left: '12%',
-    right: '-20%',
-    bottom: 0,
-    height: '30%',
-    backgroundColor: 'rgba(58, 140, 90, 0.55)',
+    left: '10%',
+    right: '-22%',
+    bottom: '2%',
+    height: '32%',
+    backgroundColor: 'rgba(48, 130, 82, 0.55)',
   },
-  hillFront: {
-    left: '-8%',
-    right: '25%',
+  hillNear: {
+    left: '-10%',
+    right: '28%',
     bottom: '-8%',
-    height: '22%',
-    backgroundColor: 'rgba(96, 170, 110, 0.7)',
+    height: '24%',
+    backgroundColor: 'rgba(78, 155, 95, 0.72)',
   },
   blade: {
     position: 'absolute',
     bottom: 0,
-    width: 8,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    backgroundColor: 'rgba(40, 110, 60, 0.55)',
+    width: 9,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
-  blade1: { left: '6%', height: 44, transform: [{ rotate: '-12deg' }] },
-  blade2: { left: '12%', height: 34, transform: [{ rotate: '8deg' }] },
-  blade3: { left: '48%', height: 40, transform: [{ rotate: '-6deg' }] },
-  blade4: { left: '55%', height: 28 },
-  blade5: { right: '10%', height: 42, transform: [{ rotate: '10deg' }] },
-  blade6: { right: '16%', height: 30, transform: [{ rotate: '-8deg' }] },
-  flower: {
+  bloom: {
     position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
   },
-  flower1: {
-    bottom: '14%',
-    left: '22%',
-    backgroundColor: 'rgba(255, 140, 170, 0.75)',
+  bloom1: { bottom: '16%', left: '20%', backgroundColor: 'rgba(255,130,160,0.8)' },
+  bloom2: { bottom: '20%', left: '62%', backgroundColor: 'rgba(255,210,80,0.75)' },
+  bloom3: { bottom: '13%', right: '26%', backgroundColor: 'rgba(255,255,255,0.75)' },
+  bloom4: { bottom: '18%', left: '36%', backgroundColor: 'rgba(200,140,255,0.55)' },
+  bloom5: { bottom: '22%', right: '40%', backgroundColor: 'rgba(255,160,120,0.65)' },
+
+  twinkle: {
+    position: 'absolute',
+    backgroundColor: '#FFFFFF',
   },
-  flower2: {
-    bottom: '18%',
-    left: '68%',
-    backgroundColor: 'rgba(255, 210, 90, 0.7)',
+
+  laserVignette: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.18)',
   },
-  flower3: {
-    bottom: '12%',
-    right: '28%',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  laserRing: {
+    position: 'absolute',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,70,90,0.12)',
+  },
+  laserRing1: {
+    width: 180,
+    height: 180,
+    top: '28%',
+    left: '24%',
+  },
+  laserRing2: {
+    width: 280,
+    height: 280,
+    top: '18%',
+    left: '8%',
+    borderColor: 'rgba(80,120,200,0.1)',
+  },
+  laserRing3: {
+    width: 120,
+    height: 120,
+    top: '48%',
+    right: '10%',
+    borderColor: 'rgba(255,70,90,0.08)',
+  },
+  laserFloor: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '18%',
+    backgroundColor: 'rgba(8,12,18,0.55)',
+  },
+  laserFloorGlow: {
+    position: 'absolute',
+    left: '15%',
+    right: '15%',
+    bottom: '10%',
+    height: 40,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,50,70,0.06)',
   },
 });
