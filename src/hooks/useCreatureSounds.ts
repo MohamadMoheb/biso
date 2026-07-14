@@ -1,26 +1,10 @@
-import { setAudioModeAsync, type AudioSource } from 'expo-audio';
+import { setAudioModeAsync } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { createSfxPool, type SfxPool } from '../audio/sfx';
+import { ENTITY_SOURCES, POP_SOURCE } from '../audio/sources';
 import { type EntitySoundId, getEntityProfile } from '../entityProfiles';
 
-const ENTITY_SOURCES: Record<EntitySoundId, AudioSource> = {
-  fish: require('../../assets/sounds/entities/fish.wav'),
-  jelly: require('../../assets/sounds/entities/jelly.wav'),
-  shrimp: require('../../assets/sounds/entities/shrimp.wav'),
-  crab: require('../../assets/sounds/entities/crab.wav'),
-  lizard: require('../../assets/sounds/entities/lizard.wav'),
-  beetle: require('../../assets/sounds/entities/beetle.wav'),
-  butterfly: require('../../assets/sounds/entities/butterfly.wav'),
-  scorpion: require('../../assets/sounds/entities/scorpion.wav'),
-  bug: require('../../assets/sounds/entities/bug.wav'),
-  bunny: require('../../assets/sounds/entities/bunny.wav'),
-  bird: require('../../assets/sounds/entities/bird.wav'),
-  bee: require('../../assets/sounds/entities/bee.wav'),
-  squirrel: require('../../assets/sounds/entities/squirrel.wav'),
-};
-
-const POP_SOURCE: AudioSource = require('../../assets/sounds/pop.wav');
 const POP_VOLUME = 0.92;
 
 /** Peak loudness per creature — tuned so soft flutter (butterfly) still sits below crab clicks. */
