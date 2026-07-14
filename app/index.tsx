@@ -24,19 +24,19 @@ const MODES: { id: ModeId; title: string; subtitle: string; emoji: string }[] = 
     id: 'creatures',
     title: 'Creatures',
     subtitle: 'Chase fish, lizards, bunnies & more',
-    emoji: '??',
+    emoji: 'ü¶é',
   },
   {
     id: 'laser',
     title: 'Laser',
     subtitle: 'Classic red-dot hunt',
-    emoji: '??',
+    emoji: 'üî¥',
   },
   {
     id: 'wand',
     title: 'Feather wand',
     subtitle: 'One soft target on a string',
-    emoji: '??',
+    emoji: 'ü™∂',
   },
 ];
 
@@ -124,14 +124,14 @@ export default function Index() {
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Text style={styles.iconBtnText}>??</Text>
+            <Text style={styles.iconBtnText}>‚öôÔ∏è</Text>
           </Pressable>
         </View>
 
         {(settings.totalCatches > 0 || settings.sessionsPlayed > 0) && (
           <View style={styles.statsStrip}>
             <Text style={styles.statsText}>
-              {settings.totalCatches} caught ∑ {settings.bestStreak} best streak ∑{' '}
+              {settings.totalCatches} caught / {settings.bestStreak} best streak /{' '}
               {settings.sessionsPlayed} sessions
             </Text>
           </View>
@@ -199,7 +199,7 @@ export default function Index() {
           <Text style={styles.modeHint}>
             {mode === 'laser'
               ? 'Drag anywhere for a bright laser. It roams on its own when you lift your finger.'
-              : 'Guide a feather wand with your finger ó or let it drift for a gentler hunt.'}
+              : 'Guide a feather wand with your finger, or let it drift for a gentler hunt.'}
           </Text>
         )}
 
@@ -218,7 +218,7 @@ export default function Index() {
           <View style={styles.tipCard}>
             <Text style={styles.tipTitle}>For your cat</Text>
             <Text style={styles.tipBody}>
-              Place the phone flat. Tap or swipe targets. Keep sessions short ó Biso will nudge you
+              Place the phone flat. Tap or swipe targets. Keep sessions short - Biso will nudge you
               when it's break time.
             </Text>
             <Pressable
