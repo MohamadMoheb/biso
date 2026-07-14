@@ -784,6 +784,8 @@ function CreatureComponent({
     if (caught.value) return;
     caught.value = true;
     aliveRef.current = false;
+    // Instant audio feedback — the catch animation finishing 160ms later is too late for a cat.
+    soundsRef.current.playPop();
     cancelAnimation(x);
     cancelAnimation(y);
     cancelAnimation(phase);
