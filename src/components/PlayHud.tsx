@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useRef, useState, type ComponentProps } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type PlayHudProps = {
@@ -12,6 +13,8 @@ type PlayHudProps = {
 
 const HOLD_MS = 700;
 
+type IconName = ComponentProps<typeof Ionicons>['name'];
+
 function formatTime(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
@@ -19,11 +22,11 @@ function formatTime(totalSec: number): string {
 }
 
 function HoldChip({
-  label,
+  icon,
   accessibilityLabel,
   onHoldComplete,
 }: {
-  label: string;
+  icon: IconName;
   accessibilityLabel: string;
   onHoldComplete: () => void;
 }) {
@@ -71,7 +74,7 @@ function HoldChip({
       accessibilityHint="Hold for about one second"
     >
       <View style={[styles.holdFill, { width: `${Math.round(progress * 100)}%` }]} />
-      <Text style={styles.chipText}>{label}</Text>
+      <Ionicons name={icon} size={22} color="#FFFFFF" style={styles.chipIcon} />
     </Pressable>
   );
 }
@@ -87,22 +90,25 @@ export function PlayHud({
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <View style={styles.topRow}>
-        <HoldChip label="<" accessibilityLabel="Exit play" onHoldComplete={onExit} />
+        <HoldChip
+          icon="chevron-back"
+          accessibilityLabel="Exit play"
+          onHoldComplete={onExit}
+        />
 
-        <Text style={styles.meta}>{formatTime(elapsedSec)}</Text>
+        <View style={styles.metaPill}>
+          <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.85)" />
+          <Text style={styles.meta}>{formatTime(elapsedSec)}</Text>
+        </View>
 
         <View style={styles.rightCluster}>
-          <Pressable
-            onPress={onToggleMute}
-            hitSlop={10}
-            style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={muted ? 'Unmute' : 'Mute'}
-          >
-            <Text style={styles.chipText}>{muted ? 'Off' : 'Snd'}</Text>
-          </Pressable>
           <HoldChip
-            label={paused ? '>' : '||'}
+            icon={muted ? 'volume-mute' : 'volume-high'}
+            accessibilityLabel={muted ? 'Unmute' : 'Mute'}
+            onHoldComplete={onToggleMute}
+          />
+          <HoldChip
+            icon={paused ? 'play' : 'pause'}
             accessibilityLabel={paused ? 'Resume' : 'Pause'}
             onHoldComplete={onTogglePause}
           />
@@ -154,19 +160,23 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(255,255,255,0.28)',
   },
-  pressed: {
-    opacity: 0.85,
-  },
-  chipText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+  chipIcon: {
     zIndex: 1,
   },
+  metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 32,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
   meta: {
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255,255,255,0.85)',
     fontFamily: bodyFont,
     fontSize: 15,
     fontWeight: '600',
+    minWidth: 36,
   },
 });
