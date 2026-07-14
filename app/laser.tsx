@@ -13,6 +13,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { PlayHud } from '../src/components/PlayHud';
+import { CatCam } from '../src/components/CatCam';
+import { CatCamGallery } from '../src/components/CatCamGallery';
 import { SessionSummary } from '../src/components/SessionSummary';
 import { LaserBackground } from '../src/components/ThemeBackground';
 import { useSafeKeepAwake } from '../src/hooks/useSafeKeepAwake';
@@ -40,6 +42,8 @@ export default function LaserScreen() {
   const [sessionOver, setSessionOver] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [hits, setHits] = useState(0);
+  const [snapCount, setSnapCount] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const recordedRef = useRef(false);
   const pausedRef = useRef(false);
   const sessionOverRef = useRef(false);
@@ -200,6 +204,13 @@ export default function LaserScreen() {
       {/* Visible laser dot */}
       <Animated.View pointerEvents="none" style={[styles.dot, dotStyle]} />
 
+      <CatCam
+        enabled={settings.catCamEnabled && !sessionOver}
+        paused={paused || sessionOver}
+        mode="laser"
+        onSnap={() => setSnapCount((c) => c + 1)}
+      />
+
       <PlayHud
         elapsedSec={elapsedSec}
         muted={!settings.soundEnabled}
@@ -237,9 +248,12 @@ export default function LaserScreen() {
           title="Time for a break"
           subtitle="Short sessions keep play fresh."
           scoreLabel={hits === 1 ? '1 catch' : `${hits} catches`}
+          snapCount={snapCount}
+          onViewSnaps={() => setGalleryOpen(true)}
           onPlayAgain={() => {
             recordedRef.current = false;
             setHits(0);
+            setSnapCount(0);
             setElapsedSec(0);
             setSessionOver(false);
             setPaused(false);
@@ -247,6 +261,8 @@ export default function LaserScreen() {
           onHome={exitHome}
         />
       ) : null}
+
+      <CatCamGallery visible={galleryOpen} onClose={() => setGalleryOpen(false)} />
     </View>
   );
 }
