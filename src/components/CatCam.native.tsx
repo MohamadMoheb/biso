@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { saveCatSnap, type CatSnap } from '../catcam/storage';
+import { useUiScale } from '../utils/layout';
 
 export type CatCamProps = {
   enabled: boolean;
@@ -30,6 +31,7 @@ function nextGap() {
  * Sits tiny in a corner so gameplay stays clear; snaps at random intervals.
  */
 export function CatCam({ enabled, paused, mode, onSnap }: CatCamProps) {
+  const ui = useUiScale();
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [ready, setReady] = useState(false);
@@ -119,8 +121,23 @@ export function CatCam({ enabled, paused, mode, onSnap }: CatCamProps) {
   if (!enabled) return null;
   if (!permission?.granted) return null;
 
+  const camW = ui.s(72);
+  const camH = ui.s(96);
+
   return (
-    <View style={styles.wrap} pointerEvents="none">
+    <View
+      style={[
+        styles.wrap,
+        {
+          right: ui.padX,
+          bottom: Math.max(ui.insets.bottom, 8) + ui.s(64),
+          width: camW,
+          height: camH,
+          borderRadius: ui.s(14),
+        },
+      ]}
+      pointerEvents="none"
+    >
       <CameraView
         ref={cameraRef}
         style={styles.camera}
@@ -142,11 +159,6 @@ export function CatCam({ enabled, paused, mode, onSnap }: CatCamProps) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    right: 14,
-    bottom: 88,
-    width: 72,
-    height: 96,
-    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.35)',
