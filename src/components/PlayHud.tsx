@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type PlayHudProps = {
@@ -11,10 +12,70 @@ type PlayHudProps = {
   onExit: () => void;
 };
 
+const HOLD_MS = 700;
+
 function formatTime(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function HoldChip({
+  label,
+  accessibilityLabel,
+  onHoldComplete,
+}: {
+  label: string;
+  accessibilityLabel: string;
+  onHoldComplete: () => void;
+}) {
+  const [progress, setProgress] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startRef = useRef(0);
+  const doneRef = useRef(false);
+
+  const clear = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const cancel = () => {
+    clear();
+    doneRef.current = false;
+    setProgress(0);
+  };
+
+  const begin = () => {
+    cancel();
+    startRef.current = Date.now();
+    timerRef.current = setInterval(() => {
+      const p = Math.min(1, (Date.now() - startRef.current) / HOLD_MS);
+      setProgress(p);
+      if (p >= 1 && !doneRef.current) {
+        doneRef.current = true;
+        clear();
+        setProgress(0);
+        onHoldComplete();
+      }
+    }, 32);
+  };
+
+  return (
+    <Pressable
+      onPressIn={begin}
+      onPressOut={cancel}
+      hitSlop={10}
+      style={styles.chip}
+      accessibilityRole="button"
+      accessibilityLabel={`${accessibilityLabel}. Hold to confirm`}
+      accessibilityHint="Hold for about one second"
+    >
+      <View style={[styles.holdFill, { width: `${Math.round(progress * 100)}%` }]} />
+      <Text style={styles.chipText}>{label}</Text>
+    </Pressable>
+  );
 }
 
 export function PlayHud({
@@ -30,15 +91,7 @@ export function PlayHud({
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <View style={styles.topRow}>
-        <Pressable
-          onPress={onExit}
-          hitSlop={12}
-          style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Exit play"
-        >
-          <Text style={styles.chipText}>{'<'}</Text>
-        </Pressable>
+        <HoldChip label="<" accessibilityLabel="Exit play" onHoldComplete={onExit} />
 
         <View style={styles.stats}>
           <Text style={styles.statMain}>{catches}</Text>
@@ -55,15 +108,11 @@ export function PlayHud({
           >
             <Text style={styles.chipText}>{muted ? 'Off' : 'Snd'}</Text>
           </Pressable>
-          <Pressable
-            onPress={onTogglePause}
-            hitSlop={10}
-            style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-            accessibilityRole="button"
+          <HoldChip
+            label={paused ? '>' : '||'}
             accessibilityLabel={paused ? 'Resume' : 'Pause'}
-          >
-            <Text style={styles.chipText}>{paused ? '>' : '||'}</Text>
-          </Pressable>
+            onHoldComplete={onTogglePause}
+          />
         </View>
       </View>
 
@@ -71,6 +120,7 @@ export function PlayHud({
         <Text style={styles.meta}>{formatTime(elapsedSec)}</Text>
         {streak >= 2 ? <Text style={styles.streak}>Streak {streak}</Text> : null}
       </View>
+      <Text style={styles.holdHint}>Hold back or pause</Text>
     </View>
   );
 }
@@ -108,6 +158,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.28)',
     paddingHorizontal: 12,
+    overflow: 'hidden',
+  },
+  holdFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.28)',
   },
   pressed: {
     opacity: 0.85,
@@ -116,6 +174,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
+    zIndex: 1,
   },
   stats: {
     alignItems: 'center',
@@ -152,5 +211,12 @@ const styles = StyleSheet.create({
     fontFamily: bodyFont,
     fontSize: 14,
     fontWeight: '700',
+  },
+  holdHint: {
+    marginTop: 4,
+    textAlign: 'center',
+    color: 'rgba(255,255,255,0.4)',
+    fontFamily: bodyFont,
+    fontSize: 11,
   },
 });
