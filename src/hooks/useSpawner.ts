@@ -83,8 +83,8 @@ export function useSpawner(
   }, []);
 
   useEffect(() => {
+    // Pause / session-over only stops spawning — keep living creatures on screen.
     if (!active || !theme || screenWidth <= 0 || screenHeight <= 0) {
-      if (!active) setCreatures([]);
       return;
     }
 
@@ -115,6 +115,11 @@ export function useSpawner(
     const timer = setInterval(spawn, spawnIntervalForMax(cappedMax));
     return () => clearInterval(timer);
   }, [active, theme, screenWidth, screenHeight, cappedMax, sizeBoost]);
+
+  // Clear only when leaving a theme entirely (screen unmount / invalid theme).
+  useEffect(() => {
+    if (!theme) setCreatures([]);
+  }, [theme]);
 
   useEffect(() => {
     setCreatures((prev) => (prev.length > cappedMax ? prev.slice(0, cappedMax) : prev));
