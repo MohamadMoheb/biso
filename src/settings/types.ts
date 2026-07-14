@@ -19,8 +19,8 @@ export const DEFAULT_SETTINGS: Settings = {
   soundEnabled: true,
   hapticsEnabled: true,
   difficulty: 'playful',
-  sessionMinutes: 10,
-  creatureCount: 4,
+  sessionMinutes: 0,
+  creatureCount: 2,
   tipSeen: false,
   sessionsPlayed: 0,
 };
@@ -41,7 +41,14 @@ export async function loadSettings(): Promise<Settings> {
     const raw = await AsyncStorage.getItem(KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw) as Partial<Settings>;
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    // Count / pace / break are fixed — no homepage controls for them.
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      creatureCount: DEFAULT_SETTINGS.creatureCount,
+      difficulty: DEFAULT_SETTINGS.difficulty,
+      sessionMinutes: DEFAULT_SETTINGS.sessionMinutes,
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }
