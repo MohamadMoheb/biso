@@ -27,9 +27,9 @@ Then open in Expo Go, or press `i` / `a` / `w`.
 - Pause / mute during play
 - Lifetime stats saved on device
 
-## Settings
+## Setup
 
-Open ⚙️ on the home screen to change sound, haptics, difficulty, and session length.
+Open the home screen to pick a mode, pace, break timer, sound, and haptics — then tap Start. Everything lives on one screen.
 
 ## Store builds
 
