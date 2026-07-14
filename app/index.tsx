@@ -29,6 +29,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { unlockAudio } from '../src/audio/unlock';
 import { ThemeBackground, LaserBackground } from '../src/components/ThemeBackground';
 import { CatCamGallery } from '../src/components/CatCamGallery';
 import { useSettings } from '../src/settings/SettingsContext';
@@ -407,6 +408,9 @@ export default function Index() {
 
   const start = () => {
     tap();
+    // Unlock the audio pipeline inside the Play gesture so SFX on the next
+    // screen are not blocked by web autoplay / cold decode.
+    unlockAudio();
     playScale.value = withSequence(withSpring(0.94), withSpring(1));
     if (mode === 'laser') {
       router.push('/laser');
