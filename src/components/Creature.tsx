@@ -44,11 +44,12 @@ function facingToward(fromX: number, toX: number): 1 | -1 {
 const DISPLAY_FACE = -1;
 const FACE_FLIP_MIN_DX = 10;
 
-type GaitKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
-// 0=other 1=flyer 2=fish 3=jelly 4=shrimp 5=bunny 6=lizard 7=walker
+type GaitKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+// 0=other 1=flyer 2=fish 3=jelly 4=shrimp 5=bunny 6=lizard 7=walker 8=bee
 
 function gaitKind(gait: Gait): GaitKind {
-  if (gait === 'butterfly' || gait === 'bird' || gait === 'bee') return 1;
+  if (gait === 'bee') return 8;
+  if (gait === 'butterfly' || gait === 'bird') return 1;
   if (gait === 'fish') return 2;
   if (gait === 'jelly') return 3;
   if (gait === 'shrimp') return 4;
@@ -228,15 +229,25 @@ function CreatureComponent({
 
     const idleMotion = () => {
       if (pausedRef.current) return;
+      if (!aliveRef.current || caught.value) return;
       if (!profile.idleDrift) {
         cancelAnimation(phase);
         phase.value = phaseRef.current;
         return;
       }
-      setPhase(
-        phaseRef.current + 1.25,
-        Math.round(1300 / (profile.speed * Math.max(0.5, speedMultRef.current))),
+      // Bees keep a continuous buzz even while hovering.
+      const cycles = gait === 'bee' ? 3.5 : 1.25;
+      const baseMs = gait === 'bee' ? 420 : 1300;
+      const duration = Math.round(
+        baseMs / (profile.speed * Math.max(0.5, speedMultRef.current)),
       );
+      const next = phaseRef.current + cycles;
+      phaseRef.current = next;
+      phase.value = withTiming(next, { duration, easing: Easing.linear }, (finished) => {
+        if (finished && aliveRef.current && !caught.value && !pausedRef.current) {
+          runOnJS(idleMotion)();
+        }
+      });
     };
 
     const moveTo = (nx: number, ny: number, duration: number, easing: (v: number) => number) =>
@@ -338,7 +349,8 @@ function CreatureComponent({
                 ? Easing.inOut(Easing.quad)
                 : Easing.inOut(Easing.sin);
 
-      setPhase(phaseRef.current + steps * (feel === 'zoom' ? 1.6 : 1), duration);
+      const phaseBoost = gait === 'bee' ? 5.5 : feel === 'zoom' ? 1.6 : 1;
+      setPhase(phaseRef.current + steps * phaseBoost, duration);
       await moveTo(nx, ny, duration, pathEase);
       await waitWhilePaused();
       if (!aliveRef.current || caught.value) return;
@@ -707,6 +719,14 @@ function CreatureComponent({
       squashY = 1 + (1 - flap) * 0.12;
       bobY = Math.sin(cycle * 0.5) * 5;
       sway = Math.sin(cycle * 0.35) * 6;
+    } else if (k === 8) {
+      // Fast wing buzz — rapid X squash reads as flapping on the emoji.
+      const wing = Math.sin(cycle * 14);
+      const open = wing * 0.5 + 0.5;
+      squashX = 0.55 + open * 0.5;
+      squashY = 1.08 - open * 0.16;
+      bobY = Math.sin(cycle * 2.2) * 3.5 + wing * 1.4;
+      sway = Math.sin(cycle * 1.1) * 5;
     } else if (k === 2) {
       const s = Math.sin(cycle);
       sway = s * 5;
