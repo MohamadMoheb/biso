@@ -14,7 +14,7 @@ import {
 
 import { Creature } from '../../src/components/Creature';
 import { ThemeBackground } from '../../src/components/ThemeBackground';
-import { usePopSound } from '../../src/hooks/usePopSound';
+import { useCreatureSounds } from '../../src/hooks/useCreatureSounds';
 import { useSpawner } from '../../src/hooks/useSpawner';
 import { isThemeId, THEMES } from '../../src/themes';
 
@@ -43,7 +43,7 @@ export default function PlayScreen() {
     height,
     maxOnScreen,
   );
-  const { playPop } = usePopSound();
+  const sounds = useCreatureSounds();
 
   useEffect(() => {
     if (!valid) {
@@ -60,11 +60,11 @@ export default function PlayScreen() {
 
   const onCatch = useCallback(
     (id: string) => {
-      void playPop();
+      sounds.playPop();
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       removeCreature(id);
     },
-    [playPop, removeCreature],
+    [sounds, removeCreature],
   );
 
   const onExit = useCallback(
@@ -88,6 +88,9 @@ export default function PlayScreen() {
           <Creature
             key={creature.id}
             creature={creature}
+            screenWidth={width}
+            screenHeight={height}
+            sounds={sounds}
             onCatch={onCatch}
             onExit={onExit}
           />
