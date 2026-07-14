@@ -25,11 +25,14 @@ const THEME_TILES: Record<ThemeId, number> = {
   grass: require('../../assets/backgrounds/grass-tile.png'),
 };
 
+/** Native tile pixels (all worlds share the same canvas size). */
 const TILE_PX_W = 400;
 const TILE_PX_H = 352;
 /** On-screen tile size — same aspect as the PNG so nothing warps. */
 const TILE_W = 260;
 const TILE_H = Math.round((TILE_W * TILE_PX_H) / TILE_PX_W);
+/** Overlap hides sub-pixel hairlines between adjacent Images. */
+const TILE_OVERLAP = 1;
 
 type ThemeBackgroundProps = {
   theme: Theme;
@@ -92,7 +95,11 @@ function PatternFill({ themeId, fill }: { themeId: ThemeId; fill: string }) {
     const list: { key: string; left: number; top: number }[] = [];
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        list.push({ key: `${r}-${c}`, left: c * TILE_W, top: r * TILE_H });
+        list.push({
+          key: `${r}-${c}`,
+          left: c * TILE_W - (c > 0 ? TILE_OVERLAP : 0),
+          top: r * TILE_H - (r > 0 ? TILE_OVERLAP : 0),
+        });
       }
     }
     return list;
@@ -113,8 +120,8 @@ function PatternFill({ themeId, fill }: { themeId: ThemeId; fill: string }) {
             position: 'absolute',
             left: t.left,
             top: t.top,
-            width: TILE_W,
-            height: TILE_H,
+            width: TILE_W + TILE_OVERLAP,
+            height: TILE_H + TILE_OVERLAP,
           }}
           resizeMode="stretch"
           accessibilityIgnoresInvertColors
