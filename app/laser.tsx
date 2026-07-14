@@ -1,14 +1,17 @@
+import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useFrameCallback,
   useSharedValue,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -17,15 +20,19 @@ import { SessionSummary } from '../src/components/SessionSummary';
 import { useSettings } from '../src/settings/SettingsContext';
 import { DIFFICULTY_META } from '../src/settings/types';
 
+const DOT = 30;
+/** Cat-paw sized hit circle around the visible laser */
+const HIT = 78;
+
 export default function LaserScreen() {
   useKeepAwake();
   const { width, height } = useWindowDimensions();
   const { settings, setSoundEnabled, recordSession } = useSettings();
   const difficulty = DIFFICULTY_META[settings.difficulty];
 
-  const x = useSharedValue(width * 0.5);
-  const y = useSharedValue(height * 0.45);
-  const touching = useSharedValue(0);
+  const x = useSharedValue(width * 0.5 - DOT / 2);
+  const y = useSharedValue(height * 0.45 - DOT / 2);
+  const steering = useSharedValue(0);
   const autoAngle = useSharedValue(0);
   const glow = useSharedValue(1);
   const frozen = useSharedValue(0);
@@ -33,8 +40,12 @@ export default function LaserScreen() {
   const [paused, setPaused] = useState(false);
   const [sessionOver, setSessionOver] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const [touches, setTouches] = useState(0);
+  const [hits, setHits] = useState(0);
   const recordedRef = useRef(false);
+  const pausedRef = useRef(false);
+  const sessionOverRef = useRef(false);
+  pausedRef.current = paused;
+  sessionOverRef.current = sessionOver;
 
   useEffect(() => {
     frozen.value = paused || sessionOver ? 1 : 0;
@@ -66,9 +77,9 @@ export default function LaserScreen() {
   useEffect(() => {
     if (sessionOver && !recordedRef.current) {
       recordedRef.current = true;
-      recordSession(touches, touches);
+      recordSession(hits, hits);
     }
-  }, [sessionOver, touches, recordSession]);
+  }, [sessionOver, hits, recordSession]);
 
   const speedSv = useSharedValue(difficulty.speed);
   useEffect(() => {
@@ -78,31 +89,72 @@ export default function LaserScreen() {
   useFrameCallback(() => {
     'worklet';
     if (frozen.value > 0) return;
-    if (touching.value > 0) return;
+    if (steering.value > 0) return;
     autoAngle.value += 0.016 * 0.55 * speedSv.value;
-    const cx = width * 0.5;
-    const cy = height * 0.48;
-    x.value = cx + Math.cos(autoAngle.value) * width * 0.28;
-    y.value = cy + Math.sin(autoAngle.value * 1.35) * height * 0.18;
+    const cx = width * 0.5 - DOT / 2;
+    const cy = height * 0.48 - DOT / 2;
+    // Wide Lissajous path — keeps the laser near edges without leaving the playfield.
+    const rx = width * 0.42;
+    const ry = height * 0.34;
+    x.value = cx + Math.cos(autoAngle.value) * rx + Math.sin(autoAngle.value * 0.37) * width * 0.06;
+    y.value = cy + Math.sin(autoAngle.value * 1.15) * ry + Math.cos(autoAngle.value * 0.55) * height * 0.05;
   });
 
-  const pan = Gesture.Pan()
-    .runOnJS(true)
+  const registerHit = useCallback(() => {
+    if (pausedRef.current || sessionOverRef.current) return;
+    setHits((h) => h + 1);
+    glow.value = withSequence(
+      withTiming(1.8, { duration: 70 }),
+      withTiming(1, { duration: 160 }),
+    );
+    if (settings.hapticsEnabled) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, [settings.hapticsEnabled, glow]);
+
+  const moveTo = (px: number, py: number) => {
+    'worklet';
+    x.value = px - DOT / 2;
+    y.value = py - DOT / 2;
+  };
+
+  // Owner steers by dragging on empty playfield (does not count as a catch).
+  const steerPan = Gesture.Pan()
     .onBegin((e) => {
-      touching.value = 1;
-      x.value = e.x - 14;
-      y.value = e.y - 14;
-      glow.value = withTiming(1.35, { duration: 80 });
-      if (!paused && !sessionOver) setTouches((t) => t + 1);
+      steering.value = 1;
+      moveTo(e.x, e.y);
     })
-    .onChange((e) => {
-      x.value = e.x - 14;
-      y.value = e.y - 14;
+    .onUpdate((e) => {
+      moveTo(e.x, e.y);
     })
     .onFinalize(() => {
-      touching.value = 0;
-      glow.value = withTiming(1, { duration: 180 });
+      steering.value = 0;
     });
+
+  // Drag starting on the laser also steers (owner), but only after movement.
+  const laserSteer = Gesture.Pan()
+    .minDistance(10)
+    .onBegin(() => {
+      steering.value = 1;
+    })
+    .onUpdate((e) => {
+      moveTo(e.x, e.y);
+    })
+    .onFinalize(() => {
+      steering.value = 0;
+    });
+
+  // Cat catch: a tap on the laser hit area (not a drag).
+  const laserTap = Gesture.Tap()
+    .maxDuration(450)
+    .maxDistance(14)
+    .onEnd((_e, success) => {
+      if (!success) return;
+      if (steering.value > 0) return;
+      runOnJS(registerHit)();
+    });
+
+  const laserGesture = Gesture.Exclusive(laserSteer, laserTap);
 
   const dotStyle = useAnimatedStyle(() => ({
     transform: [
@@ -114,17 +166,24 @@ export default function LaserScreen() {
 
   const bloomStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: x.value - 14 },
-      { translateY: y.value - 14 },
-      { scale: glow.value * 2.2 },
+      { translateX: x.value + DOT / 2 - 28 },
+      { translateY: y.value + DOT / 2 - 28 },
+      { scale: glow.value },
     ],
-    opacity: 0.35,
+    opacity: 0.32,
+  }));
+
+  const hitStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: x.value + DOT / 2 - HIT / 2 },
+      { translateY: y.value + DOT / 2 - HIT / 2 },
+    ],
   }));
 
   const exitHome = () => {
-    if (!recordedRef.current && touches > 0) {
+    if (!recordedRef.current && hits > 0) {
       recordedRef.current = true;
-      recordSession(touches, touches);
+      recordSession(hits, hits);
     }
     if (router.canGoBack()) router.back();
     else router.replace('/');
@@ -134,15 +193,25 @@ export default function LaserScreen() {
     <View style={styles.root}>
       <StatusBar hidden />
       <View style={styles.bg} />
-      <GestureDetector gesture={pan}>
-        <View style={StyleSheet.absoluteFill}>
-          <Animated.View style={[styles.bloom, bloomStyle]} />
-          <Animated.View style={[styles.dot, dotStyle]} />
-        </View>
+
+      {/* Full-screen steer layer (owner) */}
+      <GestureDetector gesture={steerPan}>
+        <View style={styles.playfield} />
       </GestureDetector>
 
+      {/* Soft bloom (visual only) */}
+      <Animated.View pointerEvents="none" style={[styles.bloom, bloomStyle]} />
+
+      {/* Cat hit target + owner drag-from-laser */}
+      <GestureDetector gesture={laserGesture}>
+        <Animated.View style={[styles.hit, hitStyle]} accessibilityLabel="Laser target" />
+      </GestureDetector>
+
+      {/* Visible laser dot */}
+      <Animated.View pointerEvents="none" style={[styles.dot, dotStyle]} />
+
       <PlayHud
-        catches={touches}
+        catches={hits}
         streak={0}
         elapsedSec={elapsedSec}
         muted={!settings.soundEnabled}
@@ -155,7 +224,9 @@ export default function LaserScreen() {
       />
 
       {!paused && !sessionOver ? (
-        <Text style={styles.hint}>Drag for laser, or let it auto-roam</Text>
+        <Text style={styles.hint} pointerEvents="none">
+          Drag to steer - cat scores by tapping the laser
+        </Text>
       ) : null}
 
       {paused && !sessionOver ? (
@@ -172,14 +243,14 @@ export default function LaserScreen() {
 
       {sessionOver ? (
         <SessionSummary
-          catches={touches}
-          bestStreak={touches}
+          catches={hits}
+          bestStreak={hits}
           elapsedSec={elapsedSec}
           title="Laser done"
           subtitle="Eyes and whiskers earned a break."
           onPlayAgain={() => {
             recordedRef.current = false;
-            setTouches(0);
+            setHits(0);
             setElapsedSec(0);
             setSessionOver(false);
             setPaused(false);
@@ -201,19 +272,37 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: '#0A1210',
   },
+  playfield: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
   bloom: {
     position: 'absolute',
     width: 56,
     height: 56,
     borderRadius: 28,
     backgroundColor: '#FF4040',
+    zIndex: 1,
+  },
+  hit: {
+    position: 'absolute',
+    width: HIT,
+    height: HIT,
+    borderRadius: HIT / 2,
+    zIndex: 3,
+    // Keep hit zone invisible but touchable
+    backgroundColor: 'transparent',
   },
   dot: {
     position: 'absolute',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
     backgroundColor: '#FF2E2E',
+    zIndex: 2,
   },
   hint: {
     position: 'absolute',
@@ -222,6 +311,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
     fontSize: 14,
     zIndex: 20,
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
   pauseScrim: {
     position: 'absolute',
