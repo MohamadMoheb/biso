@@ -54,10 +54,14 @@ export default function LaserScreen() {
 
   const laserSounds = useLaserSounds(settings.soundEnabled, {
     zapping: !paused && !sessionOver,
-    pace: difficulty.speed,
   });
   const laserSoundsRef = useRef(laserSounds);
   laserSoundsRef.current = laserSounds;
+
+  const playMoveTick = useCallback((speed: number) => {
+    if (pausedRef.current || sessionOverRef.current) return;
+    laserSoundsRef.current.playMove(speed);
+  }, []);
 
   useEffect(() => {
     if (paused || sessionOver) return;
@@ -85,30 +89,49 @@ export default function LaserScreen() {
     speedSv.value = difficulty.speed;
   }, [difficulty.speed, speedSv]);
 
-  const clampPos = (px: number, py: number) => {
+  // Wander speed phases — randomly crawl, cruise, then burst.
+  const speedMul = useSharedValue(1);
+  const speedGoal = useSharedValue(1);
+  const phaseElapsed = useSharedValue(0);
+  const phaseDuration = useSharedValue(2.2);
+  const moveSinceTick = useSharedValue(0);
+
+  const pickSpeedGoal = () => {
     'worklet';
-    const margin = 10;
-    return {
-      nx: Math.min(Math.max(px, margin), width - DOT_SZ - margin),
-      ny: Math.min(Math.max(py, margin), height - DOT_SZ - margin),
-    };
+    const roll = Math.random();
+    if (roll < 0.34) return 0.26 + Math.random() * 0.22;
+    if (roll < 0.72) return 0.72 + Math.random() * 0.38;
+    return 1.12 + Math.random() * 0.62;
   };
 
   const frameTick = useFrameCallback((frame) => {
     'worklet';
     if (steering.value > 0) return;
 
-    // Real frame delta (clamped across stalls) — keeps speed identical on 60/90/120 Hz displays.
     const dt = Math.min(frame.timeSincePreviousFrame ?? 16.7, 64) / 1000;
-    const pace = 0.28 + 0.95 * speedSv.value;
+    const basePace = 0.28 + 0.95 * speedSv.value;
+
+    phaseElapsed.value += dt;
+    if (phaseElapsed.value >= phaseDuration.value) {
+      phaseElapsed.value = 0;
+      phaseDuration.value = 1.3 + Math.random() * 2.6;
+      speedGoal.value = pickSpeedGoal();
+    }
+
+    const rising = speedGoal.value > speedMul.value;
+    const blendRate = rising ? 3.4 : 1.5;
+    speedMul.value += (speedGoal.value - speedMul.value) * Math.min(1, dt * blendRate);
+
+    const pace = basePace * speedMul.value;
     wanderT.value += dt * pace;
-    // Gentle heading drift so the path feels alive without locking to one corner.
     heading.value +=
       (Math.sin(wanderT.value * 0.9) * 0.55 + Math.sin(wanderT.value * 2.3) * 0.25) * dt * pace;
 
-    const step = (2.8 + 7.5 * pace) * (0.85 + 0.15 * Math.sin(wanderT.value * 1.7)) * (dt * 60);
+    const wobble = 0.86 + 0.14 * Math.sin(wanderT.value * 1.7);
+    const step = (2.8 + 7.5 * basePace) * speedMul.value * wobble * (dt * 60);
     const dx = Math.cos(heading.value) * step;
     const dy = Math.sin(heading.value) * step * (height / Math.max(width, 1));
+    const travel = Math.hypot(dx, dy);
 
     let nx = x.value + dx;
     let ny = y.value + dy;
@@ -118,7 +141,6 @@ export default function LaserScreen() {
     const minY = margin;
     const maxY = height - DOT_SZ - margin;
 
-    // Bounce off edges so the laser keeps covering the whole playfield.
     if (nx < minX || nx > maxX) {
       heading.value = Math.PI - heading.value;
       nx = Math.min(Math.max(nx, minX), maxX);
@@ -130,12 +152,28 @@ export default function LaserScreen() {
 
     x.value = nx;
     y.value = ny;
+
+    moveSinceTick.value += travel;
+    const tickDist = 38 + basePace * 10;
+    if (moveSinceTick.value >= tickDist) {
+      moveSinceTick.value = 0;
+      runOnJS(playMoveTick)(basePace * speedMul.value);
+    }
   });
 
   // Stop the per-frame worklet entirely while paused / on the summary screen.
   useEffect(() => {
     frameTick.setActive(!paused && !sessionOver);
   }, [frameTick, paused, sessionOver]);
+
+  const clampPos = (px: number, py: number) => {
+    'worklet';
+    const margin = 10;
+    return {
+      nx: Math.min(Math.max(px, margin), width - DOT_SZ - margin),
+      ny: Math.min(Math.max(py, margin), height - DOT_SZ - margin),
+    };
+  };
 
   const registerHit = useCallback(() => {
     if (pausedRef.current || sessionOverRef.current) return;
