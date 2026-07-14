@@ -12,10 +12,21 @@ async function fs() {
   return import('expo-file-system');
 }
 
-async function ensureDir(
-  Directory: (typeof import('expo-file-system'))['Directory'],
-  Paths: (typeof import('expo-file-system'))['Paths'],
-) {
+type Fs = Awaited<ReturnType<typeof fs>>;
+
+/** index.json is app-owned but still untrusted input — validate every entry. */
+function isCatSnap(value: unknown): value is CatSnap {
+  if (!value || typeof value !== 'object') return false;
+  const snap = value as Record<string, unknown>;
+  return (
+    typeof snap.id === 'string' &&
+    typeof snap.uri === 'string' &&
+    typeof snap.createdAt === 'number' &&
+    (snap.mode === 'creatures' || snap.mode === 'laser')
+  );
+}
+
+async function ensureDir(Directory: Fs['Directory'], Paths: Fs['Paths']) {
   const dir = new Directory(Paths.document, 'catcam');
   if (!dir.exists) {
     dir.create({ intermediates: true });
@@ -23,21 +34,14 @@ async function ensureDir(
   return dir;
 }
 
-async function readMeta(
-  File: (typeof import('expo-file-system'))['File'],
-  Paths: (typeof import('expo-file-system'))['Paths'],
-): Promise<CatSnap[]> {
+async function readMeta(File: Fs['File'], Paths: Fs['Paths']): Promise<CatSnap[]> {
   const meta = new File(Paths.document, 'catcam', 'index.json');
   if (!meta.exists) return [];
-  const parsed = await meta.json();
-  return Array.isArray(parsed) ? (parsed as CatSnap[]) : [];
+  const parsed: unknown = await meta.json();
+  return Array.isArray(parsed) ? parsed.filter(isCatSnap) : [];
 }
 
-function writeMeta(
-  File: (typeof import('expo-file-system'))['File'],
-  Paths: (typeof import('expo-file-system'))['Paths'],
-  snaps: CatSnap[],
-) {
+function writeMeta(File: Fs['File'], Paths: Fs['Paths'], snaps: CatSnap[]) {
   const meta = new File(Paths.document, 'catcam', 'index.json');
   if (!meta.exists) {
     meta.create();
@@ -45,15 +49,25 @@ function writeMeta(
   meta.write(JSON.stringify(snaps));
 }
 
+/** Delete only files that actually live inside the catcam directory. */
+function deleteSnapFile(File: Fs['File'], dirUri: string, uri: string) {
+  if (!uri.startsWith(dirUri)) return;
+  try {
+    new File(uri).delete();
+  } catch {
+    // Already gone
+  }
+}
+
 export async function listCatSnaps(): Promise<CatSnap[]> {
   try {
     const { Directory, File, Paths } = await fs();
-    await ensureDir(Directory, Paths);
+    const dir = await ensureDir(Directory, Paths);
     const snaps = await readMeta(File, Paths);
     const kept: CatSnap[] = [];
     for (const snap of snaps) {
       try {
-        if (new File(snap.uri).exists) kept.push(snap);
+        if (snap.uri.startsWith(dir.uri) && new File(snap.uri).exists) kept.push(snap);
       } catch {
         // drop
       }
@@ -71,7 +85,7 @@ export async function saveCatSnap(
 ): Promise<CatSnap | null> {
   try {
     const { Directory, File, Paths } = await fs();
-    await ensureDir(Directory, Paths);
+    const dir = await ensureDir(Directory, Paths);
     const id = `snap-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
     const dest = new File(Paths.document, 'catcam', `${id}.jpg`);
     try {
@@ -85,11 +99,7 @@ export async function saveCatSnap(
     const keepIds = new Set(next.map((s) => s.id));
     for (const old of prev) {
       if (!keepIds.has(old.id)) {
-        try {
-          new File(old.uri).delete();
-        } catch {
-          // ignore
-        }
+        deleteSnapFile(File, dir.uri, old.uri);
       }
     }
     writeMeta(File, Paths, next);
@@ -102,7 +112,7 @@ export async function saveCatSnap(
 export async function deleteCatSnap(id: string): Promise<void> {
   try {
     const { Directory, File, Paths } = await fs();
-    await ensureDir(Directory, Paths);
+    const dir = await ensureDir(Directory, Paths);
     const snaps = await readMeta(File, Paths);
     const target = snaps.find((s) => s.id === id);
     writeMeta(
@@ -111,11 +121,7 @@ export async function deleteCatSnap(id: string): Promise<void> {
       snaps.filter((s) => s.id !== id),
     );
     if (target) {
-      try {
-        new File(target.uri).delete();
-      } catch {
-        // ignore
-      }
+      deleteSnapFile(File, dir.uri, target.uri);
     }
   } catch {
     // ignore
@@ -125,15 +131,11 @@ export async function deleteCatSnap(id: string): Promise<void> {
 export async function clearCatSnaps(): Promise<void> {
   try {
     const { Directory, File, Paths } = await fs();
-    await ensureDir(Directory, Paths);
+    const dir = await ensureDir(Directory, Paths);
     const snaps = await readMeta(File, Paths);
     writeMeta(File, Paths, []);
     for (const s of snaps) {
-      try {
-        new File(s.uri).delete();
-      } catch {
-        // ignore
-      }
+      deleteSnapFile(File, dir.uri, s.uri);
     }
   } catch {
     // ignore
