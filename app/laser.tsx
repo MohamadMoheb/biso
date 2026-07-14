@@ -77,9 +77,9 @@ export default function LaserScreen() {
   useEffect(() => {
     if (sessionOver && !recordedRef.current) {
       recordedRef.current = true;
-      recordSession(hits, hits);
+      recordSession();
     }
-  }, [sessionOver, hits, recordSession]);
+  }, [sessionOver, recordSession]);
 
   const speedSv = useSharedValue(difficulty.speed);
   useEffect(() => {
@@ -181,9 +181,9 @@ export default function LaserScreen() {
   }));
 
   const exitHome = () => {
-    if (!recordedRef.current && hits > 0) {
+    if (!recordedRef.current) {
       recordedRef.current = true;
-      recordSession(hits, hits);
+      recordSession();
     }
     if (router.canGoBack()) router.back();
     else router.replace('/');
@@ -211,8 +211,6 @@ export default function LaserScreen() {
       <Animated.View pointerEvents="none" style={[styles.dot, dotStyle]} />
 
       <PlayHud
-        catches={hits}
-        streak={0}
         elapsedSec={elapsedSec}
         muted={!settings.soundEnabled}
         paused={paused || sessionOver}
@@ -245,11 +243,9 @@ export default function LaserScreen() {
 
       {sessionOver ? (
         <SessionSummary
-          catches={hits}
-          bestStreak={hits}
           elapsedSec={elapsedSec}
-          title="Laser done"
-          subtitle="Eyes and whiskers earned a break."
+          title="Time for a break"
+          subtitle="Short sessions keep play fresh."
           onPlayAgain={() => {
             recordedRef.current = false;
             setHits(0);
