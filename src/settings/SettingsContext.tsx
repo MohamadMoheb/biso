@@ -25,7 +25,7 @@ type SettingsContextValue = {
   setSessionMinutes: (v: Settings['sessionMinutes']) => void;
   setCreatureCount: (v: number) => void;
   markTipSeen: () => void;
-  recordSession: (catches: number, bestStreak: number) => void;
+  recordSession: () => void;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -61,11 +61,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setSessionMinutes: (sessionMinutes) => commit({ ...settings, sessionMinutes }),
       setCreatureCount: (creatureCount) => commit({ ...settings, creatureCount }),
       markTipSeen: () => commit({ ...settings, tipSeen: true }),
-      recordSession: (catches, streak) =>
+      recordSession: () =>
         commit({
           ...settings,
-          totalCatches: settings.totalCatches + catches,
-          bestStreak: Math.max(settings.bestStreak, streak),
           sessionsPlayed: settings.sessionsPlayed + 1,
         }),
     }),
