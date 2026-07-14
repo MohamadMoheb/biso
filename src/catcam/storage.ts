@@ -1,5 +1,3 @@
-import * as FileSystem from 'expo-file-system/legacy';
-
 export type CatSnap = {
   id: string;
   uri: string;
@@ -7,91 +5,137 @@ export type CatSnap = {
   mode: 'creatures' | 'laser';
 };
 
-const DIR = `${FileSystem.documentDirectory ?? ''}catcam/`;
-const META_PATH = `${DIR}index.json`;
 const MAX_SNAPS = 40;
 
-async function ensureDir(): Promise<boolean> {
-  if (!FileSystem.documentDirectory) return false;
-  const info = await FileSystem.getInfoAsync(DIR);
-  if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(DIR, { intermediates: true });
-  }
-  return true;
+/** Lazy-load so a missing FileSystem native module cannot white-screen the home screen. */
+async function fs() {
+  return import('expo-file-system');
 }
 
-async function readMeta(): Promise<CatSnap[]> {
-  try {
-    if (!(await ensureDir())) return [];
-    const info = await FileSystem.getInfoAsync(META_PATH);
-    if (!info.exists) return [];
-    const text = await FileSystem.readAsStringAsync(META_PATH);
-    const parsed = JSON.parse(text) as CatSnap[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+async function ensureDir(
+  Directory: (typeof import('expo-file-system'))['Directory'],
+  Paths: (typeof import('expo-file-system'))['Paths'],
+) {
+  const dir = new Directory(Paths.document, 'catcam');
+  if (!dir.exists) {
+    dir.create({ intermediates: true });
   }
+  return dir;
 }
 
-async function writeMeta(snaps: CatSnap[]) {
-  if (!(await ensureDir())) return;
-  await FileSystem.writeAsStringAsync(META_PATH, JSON.stringify(snaps));
+async function readMeta(
+  File: (typeof import('expo-file-system'))['File'],
+  Paths: (typeof import('expo-file-system'))['Paths'],
+): Promise<CatSnap[]> {
+  const meta = new File(Paths.document, 'catcam', 'index.json');
+  if (!meta.exists) return [];
+  const parsed = await meta.json();
+  return Array.isArray(parsed) ? (parsed as CatSnap[]) : [];
+}
+
+function writeMeta(
+  File: (typeof import('expo-file-system'))['File'],
+  Paths: (typeof import('expo-file-system'))['Paths'],
+  snaps: CatSnap[],
+) {
+  const meta = new File(Paths.document, 'catcam', 'index.json');
+  if (!meta.exists) {
+    meta.create();
+  }
+  meta.write(JSON.stringify(snaps));
 }
 
 export async function listCatSnaps(): Promise<CatSnap[]> {
-  if (!(await ensureDir())) return [];
-  const snaps = await readMeta();
-  const kept: CatSnap[] = [];
-  for (const snap of snaps) {
-    const info = await FileSystem.getInfoAsync(snap.uri);
-    if (info.exists) kept.push(snap);
+  try {
+    const { Directory, File, Paths } = await fs();
+    await ensureDir(Directory, Paths);
+    const snaps = await readMeta(File, Paths);
+    const kept: CatSnap[] = [];
+    for (const snap of snaps) {
+      try {
+        if (new File(snap.uri).exists) kept.push(snap);
+      } catch {
+        // drop
+      }
+    }
+    if (kept.length !== snaps.length) writeMeta(File, Paths, kept);
+    return kept;
+  } catch {
+    return [];
   }
-  if (kept.length !== snaps.length) await writeMeta(kept);
-  return kept;
 }
 
 export async function saveCatSnap(
   sourceUri: string,
   mode: CatSnap['mode'],
 ): Promise<CatSnap | null> {
-  if (!(await ensureDir())) return null;
-  const id = `snap-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
-  const dest = `${DIR}${id}.jpg`;
   try {
-    await FileSystem.copyAsync({ from: sourceUri, to: dest });
-  } catch {
+    const { Directory, File, Paths } = await fs();
+    await ensureDir(Directory, Paths);
+    const id = `snap-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
+    const dest = new File(Paths.document, 'catcam', `${id}.jpg`);
     try {
-      await FileSystem.moveAsync({ from: sourceUri, to: dest });
+      await new File(sourceUri).copy(dest);
     } catch {
-      return null;
+      await new File(sourceUri).move(dest);
     }
-  }
-  const snap: CatSnap = { id, uri: dest, createdAt: Date.now(), mode };
-  const prev = await readMeta();
-  const next = [snap, ...prev].slice(0, MAX_SNAPS);
-  const keepIds = new Set(next.map((s) => s.id));
-  for (const old of prev) {
-    if (!keepIds.has(old.id)) {
-      void FileSystem.deleteAsync(old.uri, { idempotent: true });
+    const snap: CatSnap = { id, uri: dest.uri, createdAt: Date.now(), mode };
+    const prev = await readMeta(File, Paths);
+    const next = [snap, ...prev].slice(0, MAX_SNAPS);
+    const keepIds = new Set(next.map((s) => s.id));
+    for (const old of prev) {
+      if (!keepIds.has(old.id)) {
+        try {
+          new File(old.uri).delete();
+        } catch {
+          // ignore
+        }
+      }
     }
+    writeMeta(File, Paths, next);
+    return snap;
+  } catch {
+    return null;
   }
-  await writeMeta(next);
-  return snap;
 }
 
 export async function deleteCatSnap(id: string): Promise<void> {
-  const snaps = await readMeta();
-  const target = snaps.find((s) => s.id === id);
-  await writeMeta(snaps.filter((s) => s.id !== id));
-  if (target) {
-    await FileSystem.deleteAsync(target.uri, { idempotent: true }).catch(() => undefined);
+  try {
+    const { Directory, File, Paths } = await fs();
+    await ensureDir(Directory, Paths);
+    const snaps = await readMeta(File, Paths);
+    const target = snaps.find((s) => s.id === id);
+    writeMeta(
+      File,
+      Paths,
+      snaps.filter((s) => s.id !== id),
+    );
+    if (target) {
+      try {
+        new File(target.uri).delete();
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // ignore
   }
 }
 
 export async function clearCatSnaps(): Promise<void> {
-  const snaps = await readMeta();
-  await writeMeta([]);
-  await Promise.all(
-    snaps.map((s) => FileSystem.deleteAsync(s.uri, { idempotent: true }).catch(() => undefined)),
-  );
+  try {
+    const { Directory, File, Paths } = await fs();
+    await ensureDir(Directory, Paths);
+    const snaps = await readMeta(File, Paths);
+    writeMeta(File, Paths, []);
+    for (const s of snaps) {
+      try {
+        new File(s.uri).delete();
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // ignore
+  }
 }
