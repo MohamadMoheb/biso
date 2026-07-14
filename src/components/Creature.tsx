@@ -184,7 +184,6 @@ function CreatureComponent({
   useEffect(() => {
     aliveRef.current = true;
     const emoji = creature.emoji;
-    const stridePx = Math.max(28, creature.size * profile.stride);
 
     const waitWhilePaused = () =>
       new Promise<void>((resolve) => {
@@ -227,6 +226,20 @@ function CreatureComponent({
       }
     };
 
+    /** Phase cycles per second — independent of travel speed / zoom. */
+    const phaseRate =
+      gait === 'bee'
+        ? 0.75
+        : gait === 'butterfly' || gait === 'bird'
+          ? 2.1
+          : gait === 'bunny'
+            ? 2.0
+            : gait === 'jelly'
+              ? 1.35
+              : gait === 'shrimp'
+                ? 2.4
+                : 1.6;
+
     const idleMotion = () => {
       if (pausedRef.current) return;
       if (!aliveRef.current || caught.value) return;
@@ -235,13 +248,8 @@ function CreatureComponent({
         phase.value = phaseRef.current;
         return;
       }
-      // Bees keep a continuous buzz even while hovering.
-      const cycles = gait === 'bee' ? 3.5 : 1.25;
-      const baseMs = gait === 'bee' ? 420 : 1300;
-      const duration = Math.round(
-        baseMs / (profile.speed * Math.max(0.5, speedMultRef.current)),
-      );
-      const next = phaseRef.current + cycles;
+      const duration = Math.round(gait === 'bee' ? 480 : 1100);
+      const next = phaseRef.current + phaseRate * (duration / 1000);
       phaseRef.current = next;
       phase.value = withTiming(next, { duration, easing: Easing.linear }, (finished) => {
         if (finished && aliveRef.current && !caught.value && !pausedRef.current) {
@@ -321,7 +329,6 @@ function CreatureComponent({
             ? Math.round(4200 / Math.sqrt(mult))
             : Math.round(3000 / Math.sqrt(mult));
       const duration = Math.round(clamp((dist / speed) * 1000, minDur, maxDur));
-      const steps = Math.max(0.8, dist / stridePx);
 
       const gap =
         opts?.soundGap ??
@@ -349,8 +356,7 @@ function CreatureComponent({
                 ? Easing.inOut(Easing.quad)
                 : Easing.inOut(Easing.sin);
 
-      const phaseBoost = gait === 'bee' ? 5.5 : feel === 'zoom' ? 1.6 : 1;
-      setPhase(phaseRef.current + steps * phaseBoost, duration);
+      setPhase(phaseRef.current + phaseRate * (duration / 1000), duration);
       await moveTo(nx, ny, duration, pathEase);
       await waitWhilePaused();
       if (!aliveRef.current || caught.value) return;
@@ -499,7 +505,7 @@ function CreatureComponent({
         const upDist = Math.hypot(apexX - posRef.current.x, apexY - posRef.current.y);
         const hopSpeed = profile.cruiseSpeed * 1.4 * Math.max(0.4, speedMultRef.current);
         const upDur = Math.round(clamp((upDist / hopSpeed) * 1000, 110, 420));
-        setPhase(phaseRef.current + 0.5, upDur);
+        setPhase(phaseRef.current + phaseRate * (upDur / 1000), upDur);
         await moveTo(apexX, apexY, upDur, Easing.out(Easing.quad));
         if (!aliveRef.current || caught.value) return;
         await waitWhilePaused();
