@@ -225,18 +225,41 @@ function synthBeetle() {
   return fadeEdges(normalize(out, 0.84));
 }
 
-/** Airy soft wing flutter */
+/** Soft, clear wing flaps — discrete air whooshes (not a hum). */
 function synthButterfly() {
-  const out = alloc(0.42);
+  const out = alloc(0.48);
   const lpf = makeLpf();
+  const hpf = makeHpf();
+  // Two full flap strokes (downbeat + upbeat feel)
+  const flaps = [
+    { at: 0.02, dur: 0.11, wide: 1 },
+    { at: 0.14, dur: 0.1, wide: 0.85 },
+    { at: 0.28, dur: 0.12, wide: 1.05 },
+  ];
   for (let i = 0; i < out.length; i++) {
     const t = i / SR;
-    const flap = 0.55 + 0.45 * Math.sin(2 * Math.PI * 9 * t);
-    const air = lpf(noise(), 700 + 500 * flap) * flap * envADSR(t, 0.03, 0.1, 0.5, 0.2, 0.42);
-    const soft = Math.sin(2 * Math.PI * 220 * t) * 0.08 * envADSR(t, 0.02, 0.08, 0.4, 0.2, 0.42);
-    out[i] = softClip(air * 0.9 + soft);
+    let v = 0;
+    for (const f of flaps) {
+      const u = t - f.at;
+      if (u < 0 || u > f.dur) continue;
+      // Smooth whoosh envelope: quick open, soft close
+      const p = u / f.dur;
+      const env = Math.sin(p * Math.PI) ** 1.35;
+      // Rushing air — band-limited noise with a moving center
+      const cut = 500 + 1400 * env * f.wide;
+      const air = lpf(noise(), cut) * env;
+      // Soft “paper wing” transient on the attack
+      const tick =
+        u < 0.018 ? hpf(noise(), 1800) * Math.exp(-u * 160) * 0.55 * f.wide : 0;
+      // Gentle low air body (not tonal / not drum)
+      const body =
+        lpf(noise(), 280) * env * 0.35 +
+        Math.sin(2 * Math.PI * (90 + 40 * env) * t) * env * 0.04;
+      v += (air * 0.85 + tick + body) * f.wide;
+    }
+    out[i] = softClip(hpf(v, 90));
   }
-  return fadeEdges(normalize(out, 0.7));
+  return fadeEdges(normalize(out, 0.82), 6);
 }
 
 /** Dry sand skitter + chitin */
@@ -310,24 +333,38 @@ function synthBird() {
   return fadeEdges(normalize(out, 0.88));
 }
 
-/** Continuous honeybee buzz with slight wobble */
+/** Real bee-style buzz — ~230Hz wingbeat, rough AM, pitch wander. */
 function synthBee() {
-  const out = alloc(0.4);
+  const out = alloc(0.55);
   const lpf = makeLpf();
+  const hpf = makeHpf();
+  let phase = 0;
   for (let i = 0; i < out.length; i++) {
     const t = i / SR;
-    const wobble = 1 + 0.04 * Math.sin(2 * Math.PI * 28 * t) + 0.02 * Math.sin(2 * Math.PI * 7 * t);
-    const f = 245 * wobble;
-    // Soft square via odd harmonics = insectile buzz
+    // Wingbeat Hz wanders like a hovering / banking bee
+    const wingHz =
+      228 +
+      18 * Math.sin(2 * Math.PI * 3.2 * t) +
+      9 * Math.sin(2 * Math.PI * 7.5 * t) +
+      5 * Math.sin(2 * Math.PI * 13 * t);
+    phase += (2 * Math.PI * wingHz) / SR;
+    // Harmonic stack (insect buzz = nearly saw/pulse)
     let buzz = 0;
-    for (let h = 1; h <= 7; h += 2) {
-      buzz += Math.sin(2 * Math.PI * f * h * t) / (h * 1.1);
+    for (let h = 1; h <= 9; h++) {
+      const amp = h % 2 === 1 ? 1 / h : 0.35 / h;
+      buzz += Math.sin(phase * h) * amp;
     }
-    const air = lpf(noise(), 2800) * 0.12;
-    const e = envADSR(t, 0.02, 0.05, 0.85, 0.1, 0.4);
-    out[i] = softClip((buzz * 0.55 + air) * e);
+    // Fast amplitude flutter from wing strokes
+    const am = 0.72 + 0.28 * Math.sin(phase);
+    // Air rush around wings
+    const air =
+      hpf(lpf(noise(), 3500), 400) *
+      (0.08 + 0.12 * Math.abs(Math.sin(phase))) *
+      (0.7 + 0.3 * Math.sin(2 * Math.PI * 11 * t));
+    const e = envADSR(t, 0.025, 0.06, 0.9, 0.12, 0.55);
+    out[i] = softClip((buzz * 0.42 * am + air) * e);
   }
-  return fadeEdges(normalize(out, 0.82));
+  return fadeEdges(normalize(out, 0.8), 5);
 }
 
 /** Quick chatter + scrabble */
@@ -364,6 +401,34 @@ function synthPop() {
   return fadeEdges(normalize(out, 0.9));
 }
 
+/** Soft catch cue — muted glass tap, not a piercing pew. */
+function synthLaser() {
+  const out = alloc(0.16);
+  const lpf = makeLpf();
+  for (let i = 0; i < out.length; i++) {
+    const t = i / SR;
+    const body = Math.sin(2 * Math.PI * (420 * Math.exp(-t * 6)) * t) * Math.exp(-t * 18);
+    const air = lpf(noise(), 2200) * Math.exp(-t * 40) * 0.18;
+    out[i] = softClip(body * 0.7 + air);
+  }
+  return fadeEdges(normalize(out, 0.55), 4);
+}
+
+/** Soft fleeting zip — sparse motion cue (not a continuous buzz). */
+function synthLaserZap() {
+  const out = alloc(0.14);
+  const lpf = makeLpf();
+  const hpf = makeHpf();
+  for (let i = 0; i < out.length; i++) {
+    const t = i / SR;
+    const f = 680 + 220 * Math.exp(-t * 14);
+    const tone = Math.sin(2 * Math.PI * f * t) * Math.exp(-t * 28);
+    const hush = hpf(lpf(noise(), 2800), 900) * Math.exp(-t * 36) * 0.22;
+    out[i] = softClip(tone * 0.45 + hush);
+  }
+  return fadeEdges(normalize(out, 0.42), 5);
+}
+
 const ENTITIES = {
   fish: synthFish,
   jelly: synthJelly,
@@ -388,6 +453,11 @@ function main() {
   }
   writeWav(POP_PATH, synthPop());
   console.log('wrote', path.relative(process.cwd(), POP_PATH));
+  const soundsDir = path.join(__dirname, '..', 'assets', 'sounds');
+  writeWav(path.join(soundsDir, 'laser.wav'), synthLaser());
+  console.log('wrote', path.relative(process.cwd(), path.join(soundsDir, 'laser.wav')));
+  writeWav(path.join(soundsDir, 'laser-zap.wav'), synthLaserZap());
+  console.log('wrote', path.relative(process.cwd(), path.join(soundsDir, 'laser-zap.wav')));
 }
 
 main();
