@@ -5,7 +5,7 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Creature } from '../../src/components/Creature';
 import { PlayHud } from '../../src/components/PlayHud';
@@ -195,10 +195,15 @@ export default function PlayScreen() {
       ) : null}
 
       {paused && !sessionOver ? (
-        <View style={styles.pauseScrim}>
+        <Pressable
+          style={styles.pauseScrim}
+          onPress={() => setPaused(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Resume play"
+        >
           <Text style={styles.pauseTitle}>Paused</Text>
-          <Text style={styles.pauseHint}>Tap play to resume</Text>
-        </View>
+          <Text style={styles.pauseHint}>Tap anywhere to resume</Text>
+        </Pressable>
       ) : null}
 
       {sessionOver ? (
@@ -252,7 +257,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 50,
+    zIndex: 45,
   },
   pauseTitle: {
     color: '#FFFFFF',
