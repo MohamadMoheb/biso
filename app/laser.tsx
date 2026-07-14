@@ -155,7 +155,7 @@ export default function LaserScreen() {
       />
 
       {!paused && !sessionOver ? (
-        <Text style={styles.hint}>Drag for laser · auto-roams when idle</Text>
+        <Text style={styles.hint}>Drag for laser, or let it auto-roam</Text>
       ) : null}
 
       {paused && !sessionOver ? (
