@@ -204,12 +204,14 @@ export default function LaserScreen() {
       {/* Visible laser dot */}
       <Animated.View pointerEvents="none" style={[styles.dot, dotStyle]} />
 
-      <CatCam
-        enabled={settings.catCamEnabled && !sessionOver}
-        paused={paused || sessionOver}
-        mode="laser"
-        onSnap={() => setSnapCount((c) => c + 1)}
-      />
+      {settings.catCamEnabled ? (
+        <CatCam
+          enabled={!sessionOver}
+          paused={paused || sessionOver}
+          mode="laser"
+          onSnap={() => setSnapCount((c) => c + 1)}
+        />
+      ) : null}
 
       <PlayHud
         elapsedSec={elapsedSec}
