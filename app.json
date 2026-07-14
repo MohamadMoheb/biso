@@ -15,7 +15,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.biso.catplay",
-      "requireFullScreen": true
+      "requireFullScreen": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.biso.catplay",
@@ -38,6 +41,7 @@
         "expo-camera",
         {
           "cameraPermission": "Biso uses the front camera for Cat Cam — surprise silly selfies while your cat plays.",
+          "microphonePermission": false,
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": false
         }
@@ -48,7 +52,15 @@
           "initialOrientation": "PORTRAIT_UP"
         }
       ],
-      "@react-native-vector-icons/ionicons"
+      "@react-native-vector-icons/ionicons",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ]
   }
 }
