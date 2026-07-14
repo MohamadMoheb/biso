@@ -1,5 +1,4 @@
 import * as Haptics from 'expo-haptics';
-import { useKeepAwake } from 'expo-keep-awake';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as SystemUI from 'expo-system-ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,13 +9,14 @@ import { PlayHud } from '../../src/components/PlayHud';
 import { SessionSummary } from '../../src/components/SessionSummary';
 import { ThemeBackground } from '../../src/components/ThemeBackground';
 import { useCreatureSounds } from '../../src/hooks/useCreatureSounds';
+import { useSafeKeepAwake } from '../../src/hooks/useSafeKeepAwake';
 import { useSpawner } from '../../src/hooks/useSpawner';
 import { DIFFICULTY_META } from '../../src/settings/types';
 import { useSettings } from '../../src/settings/SettingsContext';
 import { isThemeId, THEMES } from '../../src/themes';
 
 export default function PlayScreen() {
-  useKeepAwake();
+  useSafeKeepAwake('biso-creatures');
   const { settings, setSoundEnabled, recordSession } = useSettings();
   const difficulty = DIFFICULTY_META[settings.difficulty];
 
