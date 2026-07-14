@@ -1,5 +1,5 @@
 import { Audio, type AVPlaybackSource } from 'expo-av';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { type EntitySoundId, getEntityProfile } from '../entityProfiles';
 
@@ -41,16 +41,18 @@ type PoolKey = EntitySoundId | 'pop';
 
 export type CreatureSounds = {
   playPop: () => void;
-  /** Soft locomotion loop beat for this emoji */
   playMove: (emoji: string) => void;
-  /** Stronger call for a sudden burst / hop / takeoff */
   playBurst: (emoji: string) => void;
 };
+
+/** Global cap so many creatures do not flood the audio bridge. */
+const GLOBAL_MOVE_GAP_MS = 90;
 
 export function useCreatureSounds(soundEnabled = true): CreatureSounds {
   const poolsRef = useRef<Partial<Record<PoolKey, Audio.Sound[]>>>({});
   const readyRef = useRef(false);
   const lastPlayRef = useRef<Partial<Record<string, number>>>({});
+  const lastGlobalMoveRef = useRef(0);
   const enabledRef = useRef(soundEnabled);
   enabledRef.current = soundEnabled;
 
@@ -65,28 +67,31 @@ export function useCreatureSounds(soundEnabled = true): CreatureSounds {
 
         const pools: Partial<Record<PoolKey, Audio.Sound[]>> = {};
 
-        const { sound: popA } = await Audio.Sound.createAsync(POP_SOURCE, {
-          volume: 0.9,
-          shouldPlay: false,
-        });
-        const { sound: popB } = await Audio.Sound.createAsync(POP_SOURCE, {
-          volume: 0.9,
-          shouldPlay: false,
-        });
+        const loadOne = async (source: AVPlaybackSource, volume: number) => {
+          const { sound } = await Audio.Sound.createAsync(source, {
+            volume,
+            shouldPlay: false,
+          });
+          return sound;
+        };
+
+        const [popA, popB] = await Promise.all([
+          loadOne(POP_SOURCE, 0.9),
+          loadOne(POP_SOURCE, 0.9),
+        ]);
         pools.pop = [popA, popB];
 
-        for (const id of Object.keys(ENTITY_SOURCES) as EntitySoundId[]) {
-          const copies = 2;
-          const sounds: Audio.Sound[] = [];
-          for (let i = 0; i < copies; i++) {
-            const { sound } = await Audio.Sound.createAsync(ENTITY_SOURCES[id], {
-              volume: ENTITY_VOLUME[id],
-              shouldPlay: false,
-            });
-            sounds.push(sound);
-          }
-          pools[id] = sounds;
-        }
+        const ids = Object.keys(ENTITY_SOURCES) as EntitySoundId[];
+        await Promise.all(
+          ids.map(async (id) => {
+            const sounds = await Promise.all([
+              loadOne(ENTITY_SOURCES[id], ENTITY_VOLUME[id]),
+              loadOne(ENTITY_SOURCES[id], ENTITY_VOLUME[id]),
+              loadOne(ENTITY_SOURCES[id], ENTITY_VOLUME[id]),
+            ]);
+            pools[id] = sounds;
+          }),
+        );
 
         if (!mounted) {
           await Promise.all(
@@ -119,7 +124,7 @@ export function useCreatureSounds(soundEnabled = true): CreatureSounds {
     };
   }, []);
 
-  const playKey = useCallback((key: PoolKey, rateKey: string, minGapMs: number, volume: number) => {
+  const playKey = useCallback((key: PoolKey, rateKey: string, minGapMs: number) => {
     if (!readyRef.current || !enabledRef.current) return;
     const now = Date.now();
     const last = lastPlayRef.current[rateKey] ?? 0;
@@ -131,25 +136,23 @@ export function useCreatureSounds(soundEnabled = true): CreatureSounds {
     const sound = pool[Math.floor(Math.random() * pool.length)];
     if (!sound) return;
 
-    void (async () => {
-      try {
-        await sound.setPositionAsync(0);
-        await sound.setVolumeAsync(volume);
-        await sound.playAsync();
-      } catch {
-        // Ignore playback races
-      }
-    })();
+    // Fire-and-forget; volume already set at create time.
+    void sound.replayAsync().catch(() => {
+      void sound.playFromPositionAsync(0).catch(() => undefined);
+    });
   }, []);
 
   const playPop = useCallback(() => {
-    playKey('pop', 'pop', 40, 0.9);
+    playKey('pop', 'pop', 40);
   }, [playKey]);
 
   const playMove = useCallback(
     (emoji: string) => {
+      const now = Date.now();
+      if (now - lastGlobalMoveRef.current < GLOBAL_MOVE_GAP_MS) return;
+      lastGlobalMoveRef.current = now;
       const profile = getEntityProfile(emoji);
-      playKey(profile.sound, `move:${profile.sound}`, 220, ENTITY_VOLUME[profile.sound] * 0.85);
+      playKey(profile.sound, `move:${profile.sound}`, 280);
     },
     [playKey],
   );
@@ -157,10 +160,13 @@ export function useCreatureSounds(soundEnabled = true): CreatureSounds {
   const playBurst = useCallback(
     (emoji: string) => {
       const profile = getEntityProfile(emoji);
-      playKey(profile.sound, `burst:${profile.sound}`, 140, Math.min(0.7, ENTITY_VOLUME[profile.sound] * 1.25));
+      playKey(profile.sound, `burst:${profile.sound}`, 160);
     },
     [playKey],
   );
 
-  return { playPop, playMove, playBurst };
+  return useMemo(
+    () => ({ playPop, playMove, playBurst }),
+    [playPop, playMove, playBurst],
+  );
 }
