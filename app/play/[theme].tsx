@@ -1,8 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
-import { router, useLocalSearchParams } from 'expo-router';
-import * as ScreenOrientation from 'expo-screen-orientation';
-import { StatusBar } from 'expo-status-bar';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as SystemUI from 'expo-system-ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -51,26 +49,16 @@ export default function PlayScreen() {
     height,
     maxOnScreen,
     difficulty.sizeBoost,
+    difficulty.speed,
   );
   const sounds = useCreatureSounds(settings.soundEnabled);
+  const playPopRef = useRef(sounds.playPop);
+  playPopRef.current = sounds.playPop;
 
   useEffect(() => {
-    if (!valid) router.replace('/');
-  }, [valid]);
-
-  useEffect(() => {
-    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
-      () => undefined,
-    );
+    void SystemUI.setBackgroundColorAsync(theme?.gradient[1] ?? '#000000');
     return () => {
-      void ScreenOrientation.unlockAsync().catch(() => undefined);
-    };
-  }, []);
-
-  useEffect(() => {
-    void SystemUI.setBackgroundColorAsync(theme?.gradient[0] ?? '#000000');
-    return () => {
-      void SystemUI.setBackgroundColorAsync('#F7F2E8');
+      void SystemUI.setBackgroundColorAsync('#06080A');
     };
   }, [theme]);
 
@@ -97,13 +85,13 @@ export default function PlayScreen() {
 
   const onCatch = useCallback(
     (id: string) => {
-      sounds.playPop();
+      playPopRef.current();
       if (settings.hapticsEnabled) {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
       removeCreature(id);
     },
-    [sounds.playPop, settings.hapticsEnabled, removeCreature],
+    [settings.hapticsEnabled, removeCreature],
   );
 
   const onExit = useCallback(
@@ -129,14 +117,13 @@ export default function PlayScreen() {
     setPaused(false);
   }, []);
 
-  if (!theme) {
-    return <View style={styles.root} />;
+  if (!valid || !theme) {
+    return <Redirect href="/" />;
   }
 
   return (
     <View style={styles.root}>
-      <StatusBar hidden />
-      <ThemeBackground theme={theme} lite />
+      <ThemeBackground theme={theme} />
 
       <View style={styles.game} collapsable={false}>
         {creatures.map((creature) => (
@@ -184,7 +171,7 @@ export default function PlayScreen() {
         <SessionSummary
           elapsedSec={elapsedSec}
           title="Time for a stretch"
-          subtitle="Short play sessions are kinder for paws and eyes."
+          subtitle={theme.subtitle}
           onPlayAgain={playAgain}
           onHome={exitHome}
         />
