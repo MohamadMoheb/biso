@@ -184,11 +184,11 @@ function ModePill({
 }) {
   const progress = useSharedValue(active ? 1 : 0);
   useEffect(() => {
-    progress.value = withSpring(active ? 1 : 0, { damping: 16, stiffness: 180 });
+    progress.value = withTiming(active ? 1 : 0, { duration: 160 });
   }, [active, progress]);
 
   const anim = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(progress.value, [0, 1], [0.96, 1]) }],
+    opacity: interpolate(progress.value, [0, 1], [0.55, 1]),
   }));
 
   return (
@@ -201,9 +201,6 @@ function ModePill({
       <Animated.View style={[styles.modePill, active ? styles.modePillOn : styles.modePillOff, anim]}>
         <Text style={styles.modePillEmoji}>{emoji}</Text>
         <Text style={[styles.modePillLabel, active && styles.modePillLabelOn]}>{label}</Text>
-        {active ? (
-          <Ionicons name="checkmark-circle" size={18} color="#1A1208" style={styles.modeCheck} />
-        ) : null}
       </Animated.View>
     </Pressable>
   );
@@ -592,38 +589,35 @@ const styles = StyleSheet.create({
   modePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    borderWidth: 2,
-    minHeight: 54,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 52,
   },
   modePillOn: {
-    backgroundColor: '#F0C36A',
+    backgroundColor: 'rgba(240,195,106,0.18)',
     borderColor: '#F0C36A',
   },
   modePillOff: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderColor: 'rgba(255,255,255,0.1)',
-    opacity: 0.72,
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   modePillEmoji: {
-    fontSize: 22,
+    fontSize: 20,
   },
   modePillLabel: {
     flex: 1,
     fontFamily: bodyFont,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: 'rgba(247,240,228,0.55)',
+    letterSpacing: 0.2,
+    color: 'rgba(247,240,228,0.45)',
   },
   modePillLabelOn: {
-    color: '#1A1208',
+    color: '#F0C36A',
     fontWeight: '700',
-  },
-  modeCheck: {
-    marginLeft: 'auto',
   },
   worldRow: {
     flexDirection: 'row',
