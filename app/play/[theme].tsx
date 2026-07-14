@@ -103,7 +103,7 @@ export default function PlayScreen() {
       }
       removeCreature(id);
     },
-    [sounds, settings.hapticsEnabled, removeCreature],
+    [sounds.playPop, settings.hapticsEnabled, removeCreature],
   );
 
   const onExit = useCallback(
@@ -136,7 +136,7 @@ export default function PlayScreen() {
   return (
     <View style={styles.root}>
       <StatusBar hidden />
-      <ThemeBackground theme={theme} />
+      <ThemeBackground theme={theme} lite />
 
       <View style={styles.game} collapsable={false}>
         {creatures.map((creature) => (
