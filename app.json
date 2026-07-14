@@ -35,6 +35,14 @@
       "expo-status-bar",
       "expo-font",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Biso uses the front camera for Cat Cam — surprise silly selfies while your cat plays.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
         "expo-screen-orientation",
         {
           "initialOrientation": "PORTRAIT_UP"
