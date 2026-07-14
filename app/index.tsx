@@ -124,15 +124,14 @@ export default function Index() {
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Text style={styles.iconBtnText}>⚙️</Text>
+            <Text style={styles.iconBtnText}>Set</Text>
           </Pressable>
         </View>
 
         {(settings.totalCatches > 0 || settings.sessionsPlayed > 0) && (
           <View style={styles.statsStrip}>
             <Text style={styles.statsText}>
-              {settings.totalCatches} caught / {settings.bestStreak} best streak /{' '}
-              {settings.sessionsPlayed} sessions
+              {`${settings.totalCatches} caught - ${settings.bestStreak} best streak - ${settings.sessionsPlayed} sessions`}
             </Text>
           </View>
         )}
