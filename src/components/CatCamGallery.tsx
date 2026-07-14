@@ -1,6 +1,7 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Image,
   Modal,
@@ -41,8 +42,26 @@ export function CatCamGallery({ visible, onClose }: Props) {
     if (visible) void refresh();
   }, [visible, refresh]);
 
+  const confirmClearAll = useCallback(() => {
+    const doClear = () => {
+      setFocus(null);
+      void clearCatSnaps().then(refresh);
+    };
+    if (Platform.OS === 'web') {
+      // RN-web Alert has no buttons — use the browser confirm.
+      if (typeof globalThis.confirm !== 'function' || globalThis.confirm('Delete all Cat Cam snaps?')) {
+        doClear();
+      }
+      return;
+    }
+    Alert.alert('Delete all snaps?', 'This removes every Cat Cam photo from this device.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete all', style: 'destructive', onPress: doClear },
+    ]);
+  }, [refresh]);
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <View
         style={[
           styles.root,
@@ -70,15 +89,27 @@ export function CatCamGallery({ visible, onClose }: Props) {
           </View>
         ) : (
           <FlatList
+            // numColumns cannot change on a live list — remount when it does (fold/resize).
+            key={cols}
             data={snaps}
             keyExtractor={(item) => item.id}
             numColumns={cols}
             contentContainerStyle={styles.grid}
             columnWrapperStyle={{ gap }}
             ItemSeparatorComponent={() => <View style={{ height: gap }} />}
+            initialNumToRender={9}
+            maxToRenderPerBatch={9}
+            windowSize={5}
+            removeClippedSubviews
             renderItem={({ item }) => (
-              <Pressable onPress={() => setFocus(item)} style={{ width: tile, height: tile * 1.25 }}>
-                <Image source={{ uri: item.uri }} style={styles.thumb} />
+              <Pressable
+                onPress={() => setFocus(item)}
+                style={{ width: tile, height: tile * 1.25 }}
+                accessibilityRole="imagebutton"
+                accessibilityLabel="Cat Cam snap"
+              >
+                {/* resize decodes at thumb size on Android instead of the full photo */}
+                <Image source={{ uri: item.uri }} style={styles.thumb} resizeMethod="resize" />
               </Pressable>
             )}
           />
@@ -87,17 +118,22 @@ export function CatCamGallery({ visible, onClose }: Props) {
         {snaps.length > 0 ? (
           <Pressable
             style={styles.clearBtn}
-            onPress={() => {
-              void clearCatSnaps().then(refresh);
-              setFocus(null);
-            }}
+            onPress={confirmClearAll}
+            accessibilityRole="button"
+            accessibilityLabel="Delete all snaps"
           >
             <Text style={styles.clearText}>Clear all</Text>
           </Pressable>
         ) : null}
       </View>
 
-      <Modal visible={!!focus} transparent animationType="fade" onRequestClose={() => setFocus(null)}>
+      <Modal
+        visible={!!focus}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFocus(null)}
+      >
         <View style={styles.focusScrim}>
           {focus ? (
             <>
