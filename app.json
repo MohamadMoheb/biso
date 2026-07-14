@@ -3,43 +3,44 @@
     "name": "Biso",
     "slug": "biso",
     "version": "1.0.0",
-  "orientation": "portrait",
-  "icon": "./assets/icon.png",
-  "userInterfaceStyle": "light",
-  "scheme": "biso",
-  "splash": {
-    "image": "./assets/splash-icon.png",
-    "resizeMode": "contain",
-    "backgroundColor": "#F7F2E8"
-  },
-  "ios": {
-    "supportsTablet": true,
-    "bundleIdentifier": "com.biso.catplay",
-    "requireFullScreen": true
-  },
-  "android": {
-    "package": "com.biso.catplay",
-    "adaptiveIcon": {
-      "backgroundColor": "#E6F4FE",
-      "foregroundImage": "./assets/android-icon-foreground.png",
-      "backgroundImage": "./assets/android-icon-background.png",
-      "monochromeImage": "./assets/android-icon-monochrome.png"
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "biso",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F2E8"
     },
-    "predictiveBackGestureEnabled": false
-  },
-  "web": {
-    "favicon": "./assets/favicon.png"
-  },
-  "plugins": [
-    "expo-router",
-    "expo-status-bar",
-    "expo-font",
-    [
-      "expo-screen-orientation",
-      {
-        "initialOrientation": "PORTRAIT_UP"
-      }
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.biso.catplay",
+      "requireFullScreen": true
+    },
+    "android": {
+      "package": "com.biso.catplay",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-font",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT_UP"
+        }
+      ],
+      "@react-native-vector-icons/ionicons"
     ]
-  ]
-}
+  }
 }
