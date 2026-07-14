@@ -18,23 +18,26 @@ import { CatCamGallery } from '../src/components/CatCamGallery';
 import { SessionSummary } from '../src/components/SessionSummary';
 import { LaserBackground } from '../src/components/ThemeBackground';
 import { useSafeKeepAwake } from '../src/hooks/useSafeKeepAwake';
+import { useLaserSounds } from '../src/hooks/useLaserSounds';
 import { useSettings } from '../src/settings/SettingsContext';
 import { DIFFICULTY_META } from '../src/settings/types';
-
-const DOT = 30;
-/** Cat-paw sized hit circle around the visible laser */
-const HIT = 78;
 
 export default function LaserScreen() {
   useSafeKeepAwake('biso-laser');
   const { width, height } = useWindowDimensions();
   const { settings, setSoundEnabled, recordSession } = useSettings();
   const difficulty = DIFFICULTY_META[settings.difficulty];
+  /** Visible laser size + cat-paw hit circle — scale with the shorter edge. */
+  const DOT_SZ = Math.max(26, Math.min(36, Math.round(Math.min(width, height) * 0.075)));
+  const HIT = Math.max(70, Math.min(100, Math.round(Math.min(width, height) * 0.2)));
+  const BLOOM = Math.round(DOT_SZ * 1.85);
 
-  const x = useSharedValue(width * 0.5 - DOT / 2);
-  const y = useSharedValue(height * 0.45 - DOT / 2);
+  const x = useSharedValue(width * 0.5 - DOT_SZ / 2);
+  const y = useSharedValue(height * 0.45 - DOT_SZ / 2);
   const steering = useSharedValue(0);
-  const autoAngle = useSharedValue(0);
+  // Heading + wobble phase for free wander (always continues from current spot).
+  const heading = useSharedValue(0.6);
+  const wanderT = useSharedValue(0);
   const glow = useSharedValue(1);
   const frozen = useSharedValue(0);
 
@@ -49,6 +52,13 @@ export default function LaserScreen() {
   const sessionOverRef = useRef(false);
   pausedRef.current = paused;
   sessionOverRef.current = sessionOver;
+
+  const laserSounds = useLaserSounds(settings.soundEnabled, {
+    zapping: !paused && !sessionOver,
+    pace: difficulty.speed,
+  });
+  const laserSoundsRef = useRef(laserSounds);
+  laserSoundsRef.current = laserSounds;
 
   useEffect(() => {
     frozen.value = paused || sessionOver ? 1 : 0;
@@ -80,19 +90,50 @@ export default function LaserScreen() {
     speedSv.value = difficulty.speed;
   }, [difficulty.speed, speedSv]);
 
+  const clampPos = (px: number, py: number) => {
+    'worklet';
+    const margin = 10;
+    return {
+      nx: Math.min(Math.max(px, margin), width - DOT_SZ - margin),
+      ny: Math.min(Math.max(py, margin), height - DOT_SZ - margin),
+    };
+  };
+
   useFrameCallback(() => {
     'worklet';
     if (frozen.value > 0) return;
     if (steering.value > 0) return;
-    // Pace multiplies wander rate strongly so Calm vs Wild is obvious when not steering.
-    autoAngle.value += 0.016 * (0.28 + 0.95 * speedSv.value);
-    const cx = width * 0.5 - DOT / 2;
-    const cy = height * 0.48 - DOT / 2;
-    // Wide Lissajous path — keeps the laser near edges without leaving the playfield.
-    const rx = width * 0.42;
-    const ry = height * 0.34;
-    x.value = cx + Math.cos(autoAngle.value) * rx + Math.sin(autoAngle.value * 0.37) * width * 0.06;
-    y.value = cy + Math.sin(autoAngle.value * 1.15) * ry + Math.cos(autoAngle.value * 0.55) * height * 0.05;
+
+    const pace = 0.28 + 0.95 * speedSv.value;
+    wanderT.value += 0.016 * pace;
+    // Gentle heading drift so the path feels alive without locking to one corner.
+    heading.value +=
+      (Math.sin(wanderT.value * 0.9) * 0.55 + Math.sin(wanderT.value * 2.3) * 0.25) * 0.016 * pace;
+
+    const step = (2.8 + 7.5 * pace) * (0.85 + 0.15 * Math.sin(wanderT.value * 1.7));
+    const dx = Math.cos(heading.value) * step;
+    const dy = Math.sin(heading.value) * step * (height / Math.max(width, 1));
+
+    let nx = x.value + dx;
+    let ny = y.value + dy;
+    const margin = 10;
+    const minX = margin;
+    const maxX = width - DOT_SZ - margin;
+    const minY = margin;
+    const maxY = height - DOT_SZ - margin;
+
+    // Bounce off edges so the laser keeps covering the whole playfield.
+    if (nx < minX || nx > maxX) {
+      heading.value = Math.PI - heading.value;
+      nx = Math.min(Math.max(nx, minX), maxX);
+    }
+    if (ny < minY || ny > maxY) {
+      heading.value = -heading.value;
+      ny = Math.min(Math.max(ny, minY), maxY);
+    }
+
+    x.value = nx;
+    y.value = ny;
   });
 
   const registerHit = useCallback(() => {
@@ -102,6 +143,7 @@ export default function LaserScreen() {
       withTiming(1.8, { duration: 70 }),
       withTiming(1, { duration: 160 }),
     );
+    laserSoundsRef.current.playHit();
     if (settings.hapticsEnabled) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -109,8 +151,9 @@ export default function LaserScreen() {
 
   const moveTo = (px: number, py: number) => {
     'worklet';
-    x.value = px - DOT / 2;
-    y.value = py - DOT / 2;
+    const { nx, ny } = clampPos(px - DOT_SZ / 2, py - DOT_SZ / 2);
+    x.value = nx;
+    y.value = ny;
   };
 
   // Owner steers by dragging on empty playfield (does not count as a catch).
@@ -126,14 +169,15 @@ export default function LaserScreen() {
       steering.value = 0;
     });
 
-  // Drag starting on the laser also steers (owner), but only after movement.
+  // Drag starting on the laser also steers (owner). Use absolute coords —
+  // e.x/e.y are local to the hit target and would pin the dot near the corner.
   const laserSteer = Gesture.Pan()
     .minDistance(10)
     .onBegin(() => {
       steering.value = 1;
     })
     .onUpdate((e) => {
-      moveTo(e.x, e.y);
+      moveTo(e.absoluteX, e.absoluteY);
     })
     .onFinalize(() => {
       steering.value = 0;
@@ -161,8 +205,8 @@ export default function LaserScreen() {
 
   const bloomStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: x.value + DOT / 2 - 28 },
-      { translateY: y.value + DOT / 2 - 28 },
+      { translateX: x.value + DOT_SZ / 2 - BLOOM / 2 },
+      { translateY: y.value + DOT_SZ / 2 - BLOOM / 2 },
       { scale: glow.value },
     ],
     opacity: 0.32,
@@ -170,8 +214,8 @@ export default function LaserScreen() {
 
   const hitStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: x.value + DOT / 2 - HIT / 2 },
-      { translateY: y.value + DOT / 2 - HIT / 2 },
+      { translateX: x.value + DOT_SZ / 2 - HIT / 2 },
+      { translateY: y.value + DOT_SZ / 2 - HIT / 2 },
     ],
   }));
 
@@ -193,16 +237,32 @@ export default function LaserScreen() {
         <View style={styles.playfield} />
       </GestureDetector>
 
-      {/* Soft bloom (visual only) */}
-      <Animated.View pointerEvents="none" style={[styles.bloom, bloomStyle]} />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.bloom,
+          bloomStyle,
+          { width: BLOOM, height: BLOOM, borderRadius: BLOOM / 2 },
+        ]}
+      />
 
       {/* Cat hit target + owner drag-from-laser */}
       <GestureDetector gesture={laserGesture}>
-        <Animated.View style={[styles.hit, hitStyle]} accessibilityLabel="Laser target" />
+        <Animated.View
+          style={[styles.hit, hitStyle, { width: HIT, height: HIT, borderRadius: HIT / 2 }]}
+          accessibilityLabel="Laser target"
+        />
       </GestureDetector>
 
       {/* Visible laser dot */}
-      <Animated.View pointerEvents="none" style={[styles.dot, dotStyle]} />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.dot,
+          dotStyle,
+          { width: DOT_SZ, height: DOT_SZ, borderRadius: DOT_SZ / 2 },
+        ]}
+      />
 
       {settings.catCamEnabled ? (
         <CatCam
@@ -270,7 +330,7 @@ export default function LaserScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#04060A' },
+  root: { flex: 1, backgroundColor: '#1C1814' },
   playfield: {
     position: 'absolute',
     left: 0,
@@ -280,26 +340,17 @@ const styles = StyleSheet.create({
   },
   bloom: {
     position: 'absolute',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
     backgroundColor: '#FF4040',
     zIndex: 1,
   },
   hit: {
     position: 'absolute',
-    width: HIT,
-    height: HIT,
-    borderRadius: HIT / 2,
     zIndex: 3,
     // Keep hit zone invisible but touchable
     backgroundColor: 'transparent',
   },
   dot: {
     position: 'absolute',
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
     backgroundColor: '#FF2E2E',
     zIndex: 2,
   },
