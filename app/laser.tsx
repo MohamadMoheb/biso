@@ -17,6 +17,7 @@ import Animated, {
 
 import { PlayHud } from '../src/components/PlayHud';
 import { SessionSummary } from '../src/components/SessionSummary';
+import { LaserBackground } from '../src/components/ThemeBackground';
 import { useSettings } from '../src/settings/SettingsContext';
 import { DIFFICULTY_META } from '../src/settings/types';
 
@@ -192,7 +193,7 @@ export default function LaserScreen() {
   return (
     <View style={styles.root}>
       <StatusBar hidden />
-      <View style={styles.bg} />
+      <LaserBackground />
 
       {/* Full-screen steer layer (owner) */}
       <GestureDetector gesture={steerPan}>
@@ -261,15 +262,7 @@ export default function LaserScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#070B10' },
-  bg: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#0A1210',
-  },
+  root: { flex: 1, backgroundColor: '#04060A' },
   playfield: {
     position: 'absolute',
     left: 0,
