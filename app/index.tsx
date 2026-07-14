@@ -29,6 +29,7 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemeBackground, LaserBackground } from '../src/components/ThemeBackground';
+import { CatCamGallery } from '../src/components/CatCamGallery';
 import { useSettings } from '../src/settings/SettingsContext';
 import { type PlayMode } from '../src/settings/types';
 import { THEME_LIST, THEMES, type ThemeId } from '../src/themes';
@@ -243,6 +244,7 @@ export default function Index() {
     settings,
     setSoundEnabled,
     setHapticsEnabled,
+    setCatCamEnabled,
     markTipSeen,
     ready,
   } = useSettings();
@@ -250,6 +252,7 @@ export default function Index() {
   const [mode, setMode] = useState<PlayMode>('creatures');
   const [themeId, setThemeId] = useState<ThemeId>(THEME_LIST[0]!.id);
   const [tipOpen, setTipOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const playScale = useSharedValue(1);
 
   useEffect(() => {
@@ -319,6 +322,27 @@ export default function Index() {
                 setHapticsEnabled(!settings.hapticsEnabled);
               }}
             />
+            <IconToggle
+              on={settings.catCamEnabled}
+              iconOn="camera"
+              iconOff="camera-outline"
+              label={settings.catCamEnabled ? 'Cat Cam off' : 'Cat Cam on'}
+              onPress={() => {
+                tap();
+                setCatCamEnabled(!settings.catCamEnabled);
+              }}
+            />
+            <Pressable
+              onPress={() => {
+                tap();
+                setGalleryOpen(true);
+              }}
+              style={styles.iconToggle}
+              accessibilityRole="button"
+              accessibilityLabel="Open Cat Cam gallery"
+            >
+              <Ionicons name="images-outline" size={20} color="#E8DFD0" />
+            </Pressable>
           </View>
         </Animated.View>
 
@@ -403,7 +427,7 @@ export default function Index() {
             <Text style={styles.tipTitle}>For cats, not thumbs</Text>
             <Text style={styles.tipBody}>
               Lay the phone flat. Tap floating creatures to wake them, then hit Play. Hold controls in
-              play so paws do not leave by accident.
+              play so paws do not leave by accident. Turn on Cat Cam for surprise POV selfies.
             </Text>
             <Pressable
               onPress={() => {
@@ -417,6 +441,8 @@ export default function Index() {
           </View>
         </View>
       </Modal>
+
+      <CatCamGallery visible={galleryOpen} onClose={() => setGalleryOpen(false)} />
     </View>
   );
 }
