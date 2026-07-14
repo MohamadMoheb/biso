@@ -21,6 +21,7 @@ type SettingsContextValue = {
   ready: boolean;
   setSoundEnabled: (v: boolean) => void;
   setHapticsEnabled: (v: boolean) => void;
+  setCatCamEnabled: (v: boolean) => void;
   setDifficulty: (v: Difficulty) => void;
   setSessionMinutes: (v: Settings['sessionMinutes']) => void;
   setCreatureCount: (v: number) => void;
@@ -60,6 +61,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       ready,
       setSoundEnabled: (soundEnabled) => commit((prev) => ({ ...prev, soundEnabled })),
       setHapticsEnabled: (hapticsEnabled) => commit((prev) => ({ ...prev, hapticsEnabled })),
+      setCatCamEnabled: (catCamEnabled) => commit((prev) => ({ ...prev, catCamEnabled })),
       setDifficulty: (difficulty) => commit((prev) => ({ ...prev, difficulty })),
       setSessionMinutes: (sessionMinutes) => commit((prev) => ({ ...prev, sessionMinutes })),
       setCreatureCount: (creatureCount) => commit((prev) => ({ ...prev, creatureCount })),
