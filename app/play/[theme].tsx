@@ -197,7 +197,7 @@ export default function PlayScreen() {
       {paused && !sessionOver ? (
         <View style={styles.pauseScrim}>
           <Text style={styles.pauseTitle}>Paused</Text>
-          <Text style={styles.pauseHint}>Tap ▶ to resume</Text>
+          <Text style={styles.pauseHint}>Tap play to resume</Text>
         </View>
       ) : null}
 
