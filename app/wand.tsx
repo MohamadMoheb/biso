@@ -74,9 +74,9 @@ export default function WandScreen() {
   useEffect(() => {
     if (sessionOver && !recordedRef.current) {
       recordedRef.current = true;
-      recordSession(swipes, swipes);
+      recordSession();
     }
-  }, [sessionOver, swipes, recordSession]);
+  }, [sessionOver, recordSession]);
 
   useFrameCallback((frame) => {
     'worklet';
@@ -114,9 +114,9 @@ export default function WandScreen() {
   }));
 
   const exitHome = () => {
-    if (!recordedRef.current && swipes > 0) {
+    if (!recordedRef.current) {
       recordedRef.current = true;
-      recordSession(swipes, swipes);
+      recordSession();
     }
     if (router.canGoBack()) router.back();
     else router.replace('/');
@@ -133,8 +133,6 @@ export default function WandScreen() {
       </GestureDetector>
 
       <PlayHud
-        catches={swipes}
-        streak={0}
         elapsedSec={elapsedSec}
         muted={!settings.soundEnabled}
         paused={paused || sessionOver}
@@ -165,11 +163,9 @@ export default function WandScreen() {
 
       {sessionOver ? (
         <SessionSummary
-          catches={swipes}
-          bestStreak={swipes}
           elapsedSec={elapsedSec}
-          title="Wand rest"
-          subtitle="A soft cooldown keeps curiosity sharp."
+          title="Time for a break"
+          subtitle="Short sessions keep play fresh."
           onPlayAgain={() => {
             recordedRef.current = false;
             setSwipes(0);
