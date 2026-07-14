@@ -108,8 +108,7 @@ export default function SettingsScreen() {
 
         <Text style={styles.section}>Lifetime lifetime</Text>
         <Text style={styles.lifetime}>
-          {settings.totalCatches} catches · {settings.bestStreak} best streak ·{' '}
-          {settings.sessionsPlayed} sessions
+          {`${settings.totalCatches} catches - ${settings.bestStreak} best streak - ${settings.sessionsPlayed} sessions`}
         </Text>
       </ScrollView>
     </SafeAreaView>
