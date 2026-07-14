@@ -193,7 +193,7 @@ export default function LaserScreen() {
   return (
     <View style={styles.root}>
       <StatusBar hidden />
-      <LaserBackground />
+      <LaserBackground lite />
 
       {/* Full-screen steer layer (owner) */}
       <GestureDetector gesture={steerPan}>
