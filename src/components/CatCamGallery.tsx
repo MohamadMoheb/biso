@@ -11,6 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { clearCatSnaps, deleteCatSnap, listCatSnaps, type CatSnap } from '../catcam/storage';
 
@@ -21,11 +22,16 @@ type Props = {
 
 export function CatCamGallery({ visible, onClose }: Props) {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [snaps, setSnaps] = useState<CatSnap[]>([]);
   const [focus, setFocus] = useState<CatSnap | null>(null);
   const gap = 10;
-  const cols = 3;
-  const tile = Math.floor((width - 48 - gap * (cols - 1)) / cols);
+  const cols = width < 360 ? 2 : 3;
+  const sidePad = 24;
+  const tile = Math.max(
+    96,
+    Math.floor((width - sidePad * 2 - gap * (cols - 1)) / cols),
+  );
 
   const refresh = useCallback(async () => {
     setSnaps(await listCatSnaps());
@@ -37,7 +43,16 @@ export function CatCamGallery({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.root}>
+      <View
+        style={[
+          styles.root,
+          {
+            paddingTop: Math.max(insets.top, 12) + 12,
+            paddingBottom: insets.bottom + 12,
+            paddingHorizontal: sidePad,
+          },
+        ]}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Cat Cam</Text>
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
@@ -126,8 +141,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#0A0C0E',
-    paddingTop: 56,
-    paddingHorizontal: 24,
   },
   header: {
     flexDirection: 'row',
@@ -177,9 +190,11 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     alignSelf: 'center',
-    marginBottom: 28,
+    marginBottom: 16,
+    minHeight: 44,
     paddingVertical: 12,
     paddingHorizontal: 18,
+    justifyContent: 'center',
   },
   clearText: {
     fontFamily: bodyFont,
@@ -209,6 +224,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.12)',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   focusActionText: {
     color: '#F7F0E4',
