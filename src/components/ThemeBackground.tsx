@@ -84,8 +84,6 @@ export function prefetchBackgroundTiles() {
   }
 }
 
-prefetchBackgroundTiles();
-
 /**
  * One decode, GPU/CSS tiling — was previously a grid of separate Image views
  * that each waited on layout + their own load (especially painful on web).
