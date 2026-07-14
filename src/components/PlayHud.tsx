@@ -1,6 +1,8 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useRef, useState, type ComponentProps } from 'react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { formatTime } from '../utils/formatTime';
 
 type PlayHudProps = {
   elapsedSec: number;
@@ -14,12 +16,6 @@ type PlayHudProps = {
 const HOLD_MS = 700;
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
-
-function formatTime(totalSec: number): string {
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
 
 function HoldChip({
   icon,
@@ -41,6 +37,8 @@ function HoldChip({
       timerRef.current = null;
     }
   };
+
+  useEffect(() => () => clear(), []);
 
   const cancel = () => {
     clear();
