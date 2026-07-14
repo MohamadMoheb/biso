@@ -27,7 +27,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ThemeBackground } from '../src/components/ThemeBackground';
+import { ThemeBackground, LaserBackground } from '../src/components/ThemeBackground';
 import { useSettings } from '../src/settings/SettingsContext';
 import { DIFFICULTY_META, type Difficulty } from '../src/settings/types';
 import { THEME_LIST, THEMES, type ThemeId } from '../src/themes';
@@ -164,8 +164,7 @@ function LaserStage({ width, height }: { width: number; height: number }) {
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      <LinearGradient colors={['#050608', '#12151C', '#0A0C10']} style={StyleSheet.absoluteFill} />
-      <View style={styles.laserDust} />
+      <LaserBackground />
       <Animated.View style={[styles.laserHalo, dotStyle]} />
       <Animated.View style={[styles.laserCore, dotStyle]} />
     </View>
@@ -189,7 +188,7 @@ function ModePill({
   }, [active, progress]);
 
   const anim = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(progress.value, [0, 1], [0.97, 1]) }],
+    transform: [{ scale: interpolate(progress.value, [0, 1], [0.96, 1]) }],
   }));
 
   return (
@@ -199,9 +198,12 @@ function ModePill({
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
     >
-      <Animated.View style={[styles.modePill, active && styles.modePillOn, anim]}>
+      <Animated.View style={[styles.modePill, active ? styles.modePillOn : styles.modePillOff, anim]}>
         <Text style={styles.modePillEmoji}>{emoji}</Text>
         <Text style={[styles.modePillLabel, active && styles.modePillLabelOn]}>{label}</Text>
+        {active ? (
+          <Ionicons name="checkmark-circle" size={18} color="#1A1208" style={styles.modeCheck} />
+        ) : null}
       </Animated.View>
     </Pressable>
   );
@@ -512,10 +514,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     top: 0,
   },
-  laserDust: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.02)',
-  },
   laserHalo: {
     position: 'absolute',
     width: 54,
@@ -595,28 +593,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 14,
     borderRadius: 16,
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 2,
+    minHeight: 54,
   },
   modePillOn: {
-    backgroundColor: 'rgba(240,195,106,0.22)',
-    borderColor: 'rgba(240,195,106,0.7)',
+    backgroundColor: '#F0C36A',
+    borderColor: '#F0C36A',
+  },
+  modePillOff: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255,255,255,0.1)',
+    opacity: 0.72,
   },
   modePillEmoji: {
     fontSize: 22,
   },
   modePillLabel: {
+    flex: 1,
     fontFamily: bodyFont,
     fontSize: 16,
     fontWeight: '600',
-    color: 'rgba(247,240,228,0.65)',
+    color: 'rgba(247,240,228,0.55)',
   },
   modePillLabelOn: {
-    color: '#F7F0E4',
+    color: '#1A1208',
+    fontWeight: '700',
+  },
+  modeCheck: {
+    marginLeft: 'auto',
   },
   worldRow: {
     flexDirection: 'row',
