@@ -29,12 +29,12 @@ const ENTITY_VOLUME: Record<EntitySoundId, number> = {
   crab: 0.46,
   lizard: 0.38,
   beetle: 0.4,
-  butterfly: 0.3,
+  butterfly: 0.4,
   scorpion: 0.4,
   bug: 0.34,
   bunny: 0.48,
   bird: 0.44,
-  bee: 0.36,
+  bee: 0.4,
   squirrel: 0.42,
 };
 
