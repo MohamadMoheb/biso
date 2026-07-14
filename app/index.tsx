@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { THEME_LIST, type Theme } from '../src/themes';
 
-const COUNT_OPTIONS = [4, 8, 12, 16, 20] as const;
+const COUNT_OPTIONS = [2, 4, 6, 8, 12] as const;
 
 function ThemeButton({ theme, count }: { theme: Theme; count: number }) {
   return (
@@ -44,7 +44,7 @@ function ThemeButton({ theme, count }: { theme: Theme; count: number }) {
 }
 
 export default function Index() {
-  const [entityCount, setEntityCount] = useState<number>(8);
+  const [entityCount, setEntityCount] = useState<number>(4);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
