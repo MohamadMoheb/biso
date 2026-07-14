@@ -8,6 +8,9 @@ type Props = {
   subtitle?: string;
   /** Optional score line (e.g. laser taps). */
   scoreLabel?: string;
+  /** Cat Cam snaps taken this session */
+  snapCount?: number;
+  onViewSnaps?: () => void;
   onPlayAgain: () => void;
   onHome: () => void;
 };
@@ -17,6 +20,8 @@ export function SessionSummary({
   title = 'Time for a break',
   subtitle = 'Short sessions keep play fresh.',
   scoreLabel,
+  snapCount = 0,
+  onViewSnaps,
   onPlayAgain,
   onHome,
 }: Props) {
@@ -25,8 +30,24 @@ export function SessionSummary({
       <View style={styles.card}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
-        <Text style={[styles.time, !scoreLabel && styles.timeSolo]}>{formatTime(elapsedSec)}</Text>
+        <Text style={[styles.time, !scoreLabel && snapCount <= 0 && styles.timeSolo]}>
+          {formatTime(elapsedSec)}
+        </Text>
         {scoreLabel ? <Text style={styles.score}>{scoreLabel}</Text> : null}
+        {snapCount > 0 ? (
+          <Text style={styles.score}>
+            {snapCount === 1 ? '1 Cat Cam snap' : `${snapCount} Cat Cam snaps`}
+          </Text>
+        ) : null}
+        {snapCount > 0 && onViewSnaps ? (
+          <Pressable
+            onPress={onViewSnaps}
+            style={({ pressed }) => [styles.secondary, pressed && styles.pressed, styles.snapBtn]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryText}>See Cat Cam</Text>
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={onPlayAgain}
           style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
@@ -129,6 +150,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: 'rgba(28,42,36,0.08)',
+  },
+  snapBtn: {
+    marginTop: 0,
+    marginBottom: 4,
   },
   secondaryText: {
     color: '#1C2A24',
