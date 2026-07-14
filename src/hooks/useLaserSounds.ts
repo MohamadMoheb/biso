@@ -1,10 +1,8 @@
-import { setAudioModeAsync, type AudioSource } from 'expo-audio';
+import { setAudioModeAsync } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { createSfxPool, type SfxPool } from '../audio/sfx';
-
-const LASER_HIT_SOURCE: AudioSource = require('../../assets/sounds/laser.wav');
-const LASER_MOVE_SOURCE: AudioSource = require('../../assets/sounds/laser-zap.wav');
+import { LASER_HIT_SOURCE, LASER_MOVE_SOURCE } from '../audio/sources';
 
 export type LaserSounds = {
   playHit: () => void;
