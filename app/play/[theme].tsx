@@ -55,9 +55,7 @@ export default function PlayScreen() {
     difficulty.sizeBoost,
     difficulty.speed,
   );
-  const sounds = useCreatureSounds(settings.soundEnabled);
-  const playPopRef = useRef(sounds.playPop);
-  playPopRef.current = sounds.playPop;
+  const sounds = useCreatureSounds(settings.soundEnabled, theme?.entities ?? []);
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(theme?.gradient[1] ?? '#000000');
@@ -87,9 +85,9 @@ export default function PlayScreen() {
     }
   }, [sessionOver, recordSession]);
 
+  // Catch sound plays inside Creature at press time for zero-delay feedback.
   const onCatch = useCallback(
     (id: string) => {
-      playPopRef.current();
       if (settings.hapticsEnabled) {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
