@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -150,9 +150,15 @@ export default function WandScreen() {
       ) : null}
 
       {paused && !sessionOver ? (
-        <View style={styles.pauseScrim}>
+        <Pressable
+          style={styles.pauseScrim}
+          onPress={() => setPaused(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Resume play"
+        >
           <Text style={styles.pauseTitle}>Paused</Text>
-        </View>
+          <Text style={styles.pauseHint}>Tap anywhere to resume</Text>
+        </Pressable>
       ) : null}
 
       {sessionOver ? (
@@ -210,7 +216,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 50,
+    zIndex: 45,
   },
   pauseTitle: { color: '#fff', fontSize: 36, fontWeight: '800' },
+  pauseHint: {
+    marginTop: 8,
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 16,
+  },
 });
