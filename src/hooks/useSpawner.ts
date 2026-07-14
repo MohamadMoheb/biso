@@ -62,8 +62,9 @@ function nestForEdge(
   }
 }
 
-function spawnIntervalForMax(maxOnScreen: number): number {
-  return Math.round(Math.max(900, 2200 - maxOnScreen * 80));
+function spawnIntervalForMax(maxOnScreen: number, pace = 1): number {
+  const base = Math.max(900, 2200 - maxOnScreen * 80);
+  return Math.round(base / Math.max(0.45, pace));
 }
 
 export function useSpawner(
@@ -73,6 +74,7 @@ export function useSpawner(
   screenHeight: number,
   maxOnScreen: number = DEFAULT_MAX_ON_SCREEN,
   sizeBoost: number = 1,
+  pace: number = 1,
 ) {
   const [creatures, setCreatures] = useState<CreatureSpawn[]>([]);
   const idRef = useRef(0);
@@ -112,9 +114,9 @@ export function useSpawner(
     };
 
     spawn();
-    const timer = setInterval(spawn, spawnIntervalForMax(cappedMax));
+    const timer = setInterval(spawn, spawnIntervalForMax(cappedMax, pace));
     return () => clearInterval(timer);
-  }, [active, theme, screenWidth, screenHeight, cappedMax, sizeBoost]);
+  }, [active, theme, screenWidth, screenHeight, cappedMax, sizeBoost, pace]);
 
   // Clear only when leaving a theme entirely (screen unmount / invalid theme).
   useEffect(() => {
