@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type Difficulty = 'calm' | 'playful' | 'wild';
 
-export type PlayMode = 'creatures' | 'laser' | 'wand';
+export type PlayMode = 'creatures' | 'laser';
 
 export type Settings = {
   soundEnabled: boolean;
