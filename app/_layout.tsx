@@ -4,6 +4,7 @@ import { loadAsync } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { preloadSounds } from '../src/audio/preloadSounds';
 import { prefetchBackgroundTiles } from '../src/components/ThemeBackground';
@@ -20,21 +21,23 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <SettingsProvider>
-      <StatusBar hidden />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'fade',
-          orientation: 'portrait',
-          contentStyle: { backgroundColor: '#06080A' },
-        }}
-      >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="play/[theme]" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="laser" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="settings" />
-      </Stack>
-    </SettingsProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SettingsProvider>
+        <StatusBar hidden />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: 'fade',
+            orientation: 'portrait',
+            contentStyle: { backgroundColor: '#06080A' },
+          }}
+        >
+          <Stack.Screen name="index" />
+          <Stack.Screen name="play/[theme]" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="laser" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="settings" />
+        </Stack>
+      </SettingsProvider>
+    </GestureHandlerRootView>
   );
 }
