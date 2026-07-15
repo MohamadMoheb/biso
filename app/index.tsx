@@ -55,33 +55,19 @@ const RED = '#FF3347';
 
 function BrandMark({ size }: { size: number }) {
   const reduceMotion = useReducedMotion();
-  const pulse = useSharedValue(1);
   const underline = useSharedValue(reduceMotion ? 1 : 0);
 
   useEffect(() => {
     if (reduceMotion) {
-      pulse.value = 1;
       underline.value = 1;
       return;
     }
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.28, { duration: 700, easing: Easing.inOut(Easing.sin) }),
-        withTiming(1, { duration: 700, easing: Easing.inOut(Easing.sin) }),
-      ),
-      -1,
-      false,
-    );
     underline.value = withTiming(1, { duration: 360, easing: Easing.out(Easing.poly(4)) });
     return () => {
-      cancelAnimation(pulse);
       cancelAnimation(underline);
     };
-  }, [pulse, reduceMotion, underline]);
+  }, [reduceMotion, underline]);
 
-  const dotStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulse.value }],
-  }));
   const lineStyle = useAnimatedStyle(() => ({
     transform: [{ scaleX: underline.value }],
   }));
@@ -94,29 +80,11 @@ function BrandMark({ size }: { size: number }) {
     letterSpacing: -1.4,
     lineHeight: size,
   };
-  const stemW = Math.max(10, Math.round(size * 0.27));
-  const dot = Math.max(6, Math.round(size * 0.19));
 
   return (
     <View style={styles.brandWrap} accessibilityRole="header" accessibilityLabel="Biso">
       <View style={styles.brandRow}>
-        <Text style={letter}>B</Text>
-        <View style={[styles.brandI, { width: stemW }]}>
-          <Animated.View
-            style={[
-              styles.brandDot,
-              {
-                width: dot,
-                height: dot,
-                borderRadius: dot / 2,
-                marginBottom: Math.max(1, size * 0.025),
-              },
-              dotStyle,
-            ]}
-          />
-          <Text style={[letter, styles.brandStem]}>ı</Text>
-        </View>
-        <Text style={letter}>so</Text>
+        <Text style={letter}>Biso</Text>
       </View>
       <Animated.View style={[styles.brandUnderline, lineStyle]} />
     </View>
@@ -916,20 +884,6 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-  },
-  brandI: {
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  brandStem: {
-    textAlign: 'center',
-  },
-  brandDot: {
-    backgroundColor: RED,
-    shadowColor: RED,
-    shadowOpacity: 0.95,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 0 },
   },
   brandUnderline: {
     width: '100%',
