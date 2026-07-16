@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 1500">
+  <rect width="2400" height="1500" fill="#bfd9d2"></rect>
+  <g id="water-bands">
+    <path d="M0,250 C380,205 760,295 1200,262 C1640,230 2020,300 2400,255 L2400,1500 L0,1500 Z" fill="#9cc4bb"></path>
+    <path d="M0,540 C420,495 820,590 1240,552 C1680,515 2060,595 2400,548 L2400,1500 L0,1500 Z" fill="#7aab9f"></path>
+    <path d="M0,840 C400,795 840,885 1260,850 C1700,812 2080,890 2400,845 L2400,1500 L0,1500 Z" fill="#5c9284"></path>
+    <path d="M0,1110 C440,1070 860,1150 1300,1118 C1740,1085 2120,1155 2400,1115 L2400,1500 L0,1500 Z" fill="#46796c"></path>
+  </g>
+  <g id="light-rays" fill="#f5ead8">
+    <polygon points="310,0 430,0 700,900 480,900" opacity=".10"></polygon>
+    <polygon points="560,0 640,0 940,820 800,820" opacity=".07"></polygon>
+    <polygon points="1480,0 1620,0 1420,940 1230,940" opacity=".10"></polygon>
+    <polygon points="1900,0 1980,0 1880,760 1740,760" opacity=".07"></polygon>
+  </g>
+  <g id="sea-floor">
+    <path d="M0,1332 C180,1300 360,1345 560,1322 C760,1298 940,1350 1160,1326 C1380,1302 1560,1352 1780,1330 C2000,1308 2200,1348 2400,1324 L2400,1500 L0,1500 Z" fill="#e8d9b8"></path>
+    <ellipse cx="420" cy="1408" rx="130" ry="52" fill="#cbb68e"></ellipse>
+    <ellipse cx="540" cy="1436" rx="86" ry="36" fill="#b09a72"></ellipse>
+    <ellipse cx="1980" cy="1418" rx="150" ry="58" fill="#cbb68e"></ellipse>
+    <ellipse cx="2110" cy="1450" rx="90" ry="36" fill="#b09a72"></ellipse>
+    <ellipse cx="1250" cy="1452" rx="100" ry="34" fill="#cbb68e"></ellipse>
+  </g>
+  <g id="kelp">
+    <path d="M150,1420 C120,1300 190,1210 155,1080 C125,970 195,880 165,760" fill="none" stroke="#4d7a5e" stroke-width="26" stroke-linecap="round"></path>
+    <ellipse cx="205" cy="1180" rx="64" ry="24" fill="#6d9a72" transform="rotate(28 205 1180)"></ellipse>
+    <ellipse cx="110" cy="1010" rx="60" ry="22" fill="#6d9a72" transform="rotate(-24 110 1010)"></ellipse>
+    <ellipse cx="215" cy="860" rx="58" ry="22" fill="#6d9a72" transform="rotate(26 215 860)"></ellipse>
+    <path d="M2270,1430 C2300,1310 2230,1230 2265,1110 C2295,1000 2235,910 2262,800" fill="none" stroke="#4d7a5e" stroke-width="24" stroke-linecap="round"></path>
+    <ellipse cx="2210" cy="1200 " rx="60" ry="22" fill="#6d9a72" transform="rotate(-26 2210 1200)"></ellipse>
+    <ellipse cx="2320" cy="1030" rx="56" ry="20" fill="#6d9a72" transform="rotate(24 2320 1030)"></ellipse>
+    <path d="M980,1440 C1010,1360 960,1300 990,1220" fill="none" stroke="#4d7a5e" stroke-width="18" stroke-linecap="round"></path>
+    <ellipse cx="1030" cy="1300" rx="42" ry="16" fill="#6d9a72" transform="rotate(26 1030 1300)"></ellipse>
+  </g>
+  <g id="coral">
+    <path d="M700,1400 L700,1290 M700,1330 L648,1256 M700,1345 L756,1268 M648,1256 L620,1200 M756,1268 L788,1206" fill="none" stroke="#c67139" stroke-width="24" stroke-linecap="round"></path>
+    <path d="M1620,1420 L1620,1330 M1620,1360 L1574,1296 M1620,1372 L1668,1300" fill="none" stroke="#d98f5f" stroke-width="20" stroke-linecap="round"></path>
+    <g fill="#d98f5f">
+      <circle cx="860" cy="1394" r="16"></circle><circle cx="900" cy="1372" r="16"></circle><circle cx="942" cy="1390" r="16"></circle><circle cx="880" cy="1424" r="16"></circle><circle cx="922" cy="1420" r="16"></circle>
+    </g>
+  </g>
+  <g id="bubbles" fill="none" stroke="#f5ead8" stroke-width="7" opacity=".65">
+    <circle cx="360" cy="620" r="20"></circle><circle cx="400" cy="540" r="12"></circle><circle cx="345" cy="470" r="8"></circle>
+    <circle cx="1310" cy="420" r="22"></circle><circle cx="1360" cy="330" r="13"></circle><circle cx="1322" cy="250" r="8"></circle>
+    <circle cx="2060" cy="700" r="18"></circle><circle cx="2105" cy="618" r="11"></circle><circle cx="2070" cy="548" r="7"></circle>
+    <circle cx="820" cy="980" r="16"></circle><circle cx="860" cy="905" r="10"></circle>
+  </g>
+</svg>

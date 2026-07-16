@@ -527,8 +527,8 @@ export default function Index() {
           <LaserStage width={stageWidth} height={stageHeight} />
         )}
         <LinearGradient
-          colors={['rgba(8,10,15,0.38)', 'transparent', 'rgba(8,10,15,0.08)', '#080A0F']}
-          locations={[0, 0.16, 0.54, 0.88]}
+          colors={['rgba(8,10,15,0.22)', 'transparent', 'rgba(8,10,15,0.06)', '#080A0F']}
+          locations={[0, 0.18, 0.58, 0.9]}
           style={StyleSheet.absoluteFill}
           pointerEvents="none"
         />
@@ -841,9 +841,16 @@ const styles = StyleSheet.create({
   },
   spriteText: {
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.35)',
-    textShadowOffset: { width: 0, height: 5 },
-    textShadowRadius: 12,
+    // Android renders emoji text-shadows as a shadow of the whole glyph cell,
+    // producing a square silhouette — so only apply the soft shadow off Android.
+    ...Platform.select({
+      android: {},
+      default: {
+        textShadowColor: 'rgba(0,0,0,0.35)',
+        textShadowOffset: { width: 0, height: 5 },
+        textShadowRadius: 12,
+      },
+    }),
   },
   laserHalo: {
     position: 'absolute',

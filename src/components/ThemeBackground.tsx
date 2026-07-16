@@ -22,19 +22,59 @@ import Animated, {
 
 import type { Theme, ThemeId } from '../themes';
 
-/** Wrap-safe motif tiles — tiled across any viewport (never stretched unevenly). */
-const THEME_TILES: Record<ThemeId, number> = {
-  sea: require('../../assets/backgrounds/sea-tile.png'),
-  desert: require('../../assets/backgrounds/desert-tile.png'),
-  grass: require('../../assets/backgrounds/grass-tile.png'),
+/**
+ * Full landscape scene per world (rasterized from SVG at 4800x3000). Rendered as
+ * a wide, flat-design horizon: the artwork sits in the middle, its top sky colour
+ * extends up and its bottom ground colour extends down, so it fills any portrait
+ * screen edge-to-edge without cropping the sun / tree / cacti.
+ */
+const SCENE_SOURCES: Record<ThemeId, number> = {
+  sea: require('../../assets/backgrounds/sea-scene.png'),
+  desert: require('../../assets/backgrounds/desert-scene.png'),
+  grass: require('../../assets/backgrounds/grass-scene.png'),
 };
 
-const LASER_FLOOR_TILE = require('../../assets/backgrounds/laser-floor-tile.png');
-const ALL_TILES = [...Object.values(THEME_TILES), LASER_FLOOR_TILE];
+/** Scene viewBox aspect (h / w) — 2400 x 1500. */
+const SCENE_RATIO = 1500 / 2400;
 
-/** Native tile pixels (all worlds share the same canvas size). */
-const TILE_PX_W = 512;
-const TILE_PX_H = 448;
+/** Top sky colour of each scene — extended above the art, seamless with its top edge. */
+const SCENE_SKY: Record<ThemeId, string> = {
+  sea: '#bfd9d2',
+  desert: '#f5ead8',
+  grass: '#f5ead8',
+};
+
+/** Bottom ground colour of each scene — extended below the art, seamless with its bottom edge. */
+const SCENE_GROUND: Record<ThemeId, string> = {
+  sea: '#46796c',
+  desert: '#c1955e',
+  grass: '#66774e',
+};
+
+/**
+ * Where each scene's horizon (sky → ground) sits within its own height. Used to
+ * line the artwork up with the on-screen horizon so the colour fills stay seamless.
+ */
+const SCENE_HORIZON: Record<ThemeId, number> = {
+  sea: 0.5,
+  desert: 0.427, // dunes begin at y=640 / 1500
+  grass: 0.467, // hills begin at y=700 / 1500
+};
+
+/** Screen height fraction the horizon is anchored to. */
+const HORIZON_ON_SCREEN = 0.42;
+
+/**
+ * Blow the full-width scene up a touch so it reads as an immersive backdrop rather
+ * than a thin strip. 1.35x keeps every focal element (sun, tree, cacti) on screen
+ * while trimming only the far empty edges.
+ */
+const SCENE_ZOOM = 1.35;
+
+const LASER_FLOOR_TILE = require('../../assets/backgrounds/laser-floor-tile.png');
+const LASER_SHEET = require('../../assets/backgrounds/laser-floor.png');
+const ALL_ASSETS = [...Object.values(SCENE_SOURCES), LASER_FLOOR_TILE, LASER_SHEET];
+
 const LASER_TILE_PX_W = 512;
 const LASER_TILE_PX_H = 448;
 
@@ -42,39 +82,13 @@ type ThemeBackgroundProps = {
   theme: Theme;
 };
 
-/** Atmosphere over each world — depth via value + cool/warm falloff (ch09). */
-const ATMOS: Record<
-  ThemeId,
-  {
-    sky: [string, string, string];
-    wash: [string, string, string];
-    vignette: string;
-  }
-> = {
-  sea: {
-    sky: ['#7EC4D8', '#4A9BB8', '#2A6F8E'],
-    wash: ['rgba(190,236,248,0.28)', 'transparent', 'rgba(12,48,72,0.38)'],
-    vignette: 'rgba(8,30,48,0.34)',
-  },
-  desert: {
-    sky: ['#F0D9A8', '#E2BC7A', '#C9964E'],
-    wash: ['rgba(255,236,200,0.32)', 'transparent', 'rgba(110,70,30,0.28)'],
-    vignette: 'rgba(70,42,18,0.28)',
-  },
-  grass: {
-    sky: ['#B7D087', '#7FAA58', '#4F7A38'],
-    wash: ['rgba(220,240,180,0.26)', 'transparent', 'rgba(30,52,18,0.32)'],
-    vignette: 'rgba(20,40,12,0.3)',
-  },
-};
-
-/** Decode all world tiles once so theme / mode switches are instant. */
+/** Decode all world scenes once so theme / mode switches are instant. */
 let tilesPrefetched = false;
 export function prefetchBackgroundTiles() {
   if (tilesPrefetched) return;
   tilesPrefetched = true;
-  void Asset.loadAsync(ALL_TILES).catch(() => undefined);
-  for (const source of ALL_TILES) {
+  void Asset.loadAsync(ALL_ASSETS).catch(() => undefined);
+  for (const source of ALL_ASSETS) {
     try {
       const uri = Asset.fromModule(source).uri;
       if (uri) void Image.prefetch(uri).catch(() => undefined);
@@ -179,47 +193,37 @@ function Twinkle({
   );
 }
 
-function PatternFill({ themeId }: { themeId: ThemeId }) {
-  const { width: winW } = useWindowDimensions();
-  // Larger tiles = fewer repeats in view → pattern reads as texture, not wallpaper.
-  const tileW = Math.max(380, Math.min(560, Math.round(winW * 0.72)));
-  const tileH = Math.round((tileW * TILE_PX_H) / TILE_PX_W);
-
-  return (
-    <TiledFill source={THEME_TILES[themeId]} tileW={tileW} tileH={tileH} opacity={0.72} />
-  );
-}
-
 export function ThemeBackground({ theme }: ThemeBackgroundProps) {
-  const atmos = ATMOS[theme.id];
+  const { width, height } = useWindowDimensions();
+  const id = theme.id;
+
+  // Wide landscape, centred and zoomed; overflow is clipped by the parent stage.
+  const sceneW = Math.round(width * SCENE_ZOOM);
+  const sceneH = Math.round(sceneW * SCENE_RATIO);
+  const left = Math.round((width - sceneW) / 2);
+  const horizonY = Math.round(height * HORIZON_ON_SCREEN);
+  const sceneTop = Math.round(horizonY - sceneH * SCENE_HORIZON[id]);
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <LinearGradient
-        colors={atmos.sky}
-        locations={[0, 0.45, 1]}
-        style={StyleSheet.absoluteFill}
+    <View style={[StyleSheet.absoluteFill, styles.clip]} pointerEvents="none">
+      {/* Sky fills everything; ground overlays from the horizon down. */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: SCENE_SKY[id] }]} />
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: horizonY,
+          bottom: 0,
+          backgroundColor: SCENE_GROUND[id],
+        }}
       />
-      <PatternFill themeId={theme.id} />
-      <LinearGradient
-        colors={atmos.wash}
-        locations={[0, 0.42, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-      {/* Soft edge vignette — frames playfield without muddying the center */}
-      <LinearGradient
-        colors={[atmos.vignette, 'transparent', 'transparent', atmos.vignette]}
-        locations={[0, 0.18, 0.78, 1]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <LinearGradient
-        colors={[atmos.vignette, 'transparent', 'transparent', atmos.vignette]}
-        locations={[0, 0.12, 0.88, 1]}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={StyleSheet.absoluteFill}
+      {/* Full landscape, top edge blends into the sky, bottom edge into the ground. */}
+      <Image
+        source={SCENE_SOURCES[id]}
+        style={{ position: 'absolute', top: sceneTop, left, width: sceneW, height: sceneH }}
+        resizeMode="cover"
+        accessibilityIgnoresInvertColors
       />
     </View>
   );
@@ -234,7 +238,16 @@ export function LaserBackground({ lite }: { lite?: boolean } = {}) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <View style={[StyleSheet.absoluteFill, styles.laserBase]} />
-      <TiledFill source={LASER_FLOOR_TILE} tileW={tileW} tileH={tileH} />
+      {Platform.OS !== 'web' ? (
+        <Image
+          source={LASER_SHEET}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+        />
+      ) : (
+        <TiledFill source={LASER_FLOOR_TILE} tileW={tileW} tileH={tileH} />
+      )}
 
       {/* Lamp spill from the far corner */}
       <LinearGradient
